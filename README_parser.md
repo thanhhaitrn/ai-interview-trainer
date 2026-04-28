@@ -21,13 +21,13 @@ pip install -r requirements.txt
 Parse a resume PDF:
 
 ```bash
-python src/parser.py
+python src/resume_system/parser.py data/raw/resume1.pdf --output-dir data/parsed
 ```
 
 Normalize the parsed JSON:
 
 ```bash
-python src/resume_normalizer.py data/parsed/resume1_parsed.json --output-dir data/llm
+python src/resume_system/resume_normalizer.py data/parsed/resume1_parsed.json --output-dir data/llm
 ```
 
 View the normalized JSON:

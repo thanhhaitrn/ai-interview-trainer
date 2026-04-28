@@ -322,15 +322,6 @@ def split_known_courses(value: str, common_courses: list[str]) -> list[str]:
     return [course_name for _, _, course_name in matches]
 
 
-def split_category_line(line: str) -> tuple[str | None, str]:
-    match = re.match(r"^([^:]+):\s*(.*)$", line)
-    if not match:
-        return None, line
-
-    category = normalize_list_item(match.group(1))
-    text = match.group(2).strip()
-    return category or None, text
-
 
 def parse_skills(lines: list[str]) -> list[dict[str, list[str]]]:
     bullets = []
@@ -341,8 +332,7 @@ def parse_skills(lines: list[str]) -> list[dict[str, list[str]]]:
         if not normalized_line:
             continue
 
-        _, skill_text = split_category_line(normalized_line)
-        for skill in split_list_items(skill_text):
+        for skill in split_list_items(normalized_line):
             dedupe_key = skill.lower()
             if dedupe_key in seen:
                 continue
