@@ -6,7 +6,18 @@ from pathlib import Path
 import streamlit as st
 
 
-DEFAULT_JSON_PATH = Path("data/llm/resume1_llm.json")
+LLM_DIR = Path("data/llm")
+
+
+def list_resume_files(directory: Path = LLM_DIR) -> list[Path]:
+    if not directory.exists():
+        return []
+
+    return sorted(
+        path
+        for path in directory.iterdir()
+        if path.is_file() and path.suffix.lower() == ".json"
+    )
 
 
 def load_resume(path: Path) -> dict:
@@ -37,14 +48,18 @@ def main() -> None:
     st.set_page_config(page_title="Resume Viewer", layout="wide")
     st.title("Resume JSON Viewer")
 
-    path_value = st.sidebar.text_input("Resume JSON path", str(DEFAULT_JSON_PATH))
-    json_path = Path(path_value)
-
-    if not json_path.exists():
-        st.error(f"File not found: {json_path}")
+    resume_files = list_resume_files()
+    if not resume_files:
+        st.error(f"No JSON files found in {LLM_DIR}")
         return
 
-    data = load_resume(json_path)
+    selected_file = st.sidebar.selectbox(
+        "Resume JSON file",
+        resume_files,
+        format_func=lambda path: path.name,
+    )
+
+    data = load_resume(selected_file)
 
     source = data.get("source", {})
     candidate = data.get("candidate", {})

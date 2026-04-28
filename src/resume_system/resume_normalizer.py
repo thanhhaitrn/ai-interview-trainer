@@ -9,6 +9,7 @@ from typing import Any
 
 PARSED_DIR = Path("data/parsed")
 LLM_DIR = Path("data/llm")
+COMMON_COURSES_PATH = Path(__file__).with_name("common_university_courses.txt")
 
 SECTION_HEADERS_KEYWORDS = {
     "EDUCATION": ["EDUCATION", "ACADEMIC BACKGROUND"],
@@ -218,9 +219,13 @@ def parse_location(value: str | None) -> dict[str, str | None]:
     }
 
 
-def split_skills(value: str) -> list[str]:
-    # Split on commas, but keep commas inside parentheses.
-    skills = []
+def normalize_list_item(value: str) -> str:
+    return re.sub(r"\s+", " ", value.strip(" \t\r\n-*\u2022\u00b7."))
+
+
+def split_list_items(value: str) -> list[str]:
+    # Split on explicit separators, but keep separators inside parentheses.
+    items = []
     current = []
     paren_depth = 0
 
@@ -230,43 +235,140 @@ def split_skills(value: str) -> list[str]:
         elif char == ")":
             paren_depth = max(paren_depth - 1, 0)
 
-        if char == "," and paren_depth == 0:
-            skill = "".join(current).strip()
-            if skill:
-                skills.append(skill)
+        if char in {",", ";", "|"} and paren_depth == 0:
+            item = normalize_list_item("".join(current))
+            if item:
+                items.append(item)
             current = []
             continue
 
         current.append(char)
 
-    last_skill = "".join(current).strip()
-    if last_skill:
-        skills.append(last_skill)
+    last_item = normalize_list_item("".join(current))
+    if last_item:
+        items.append(last_item)
 
-    return skills
+    return items
 
+
+def load_common_courses(path: Path = COMMON_COURSES_PATH) -> list[str]:
+    if not path.exists():
+        return []
+
+    return [
+        line.strip()
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    ]
+
+
+def course_pattern(course_name: str) -> re.Pattern[str] | None:
+    tokens = re.findall(r"[A-Za-z0-9]+", course_name.replace("&", " and "))
+    if not tokens:
+        return None
+
+    token_patterns = [
+        r"(?:and|&)" if token.lower() == "and" else re.escape(token)
+        for token in tokens
+    ]
+    pattern = r"(?<![A-Za-z0-9])" + r"[\W_]+".join(token_patterns) + r"(?![A-Za-z0-9])"
+    return re.compile(pattern, flags=re.IGNORECASE)
+
+
+def select_course_matches(text: str, common_courses: list[str]) -> list[tuple[int, int, str]]:
+    matches = []
+    for course_name in common_courses:
+        pattern = course_pattern(course_name)
+        if pattern is None:
+            continue
+
+        for match in pattern.finditer(text):
+            matches.append((match.start(), match.end(), course_name))
+
+    selected = []
+    for start, end, course_name in sorted(matches, key=lambda item: (item[0], -(item[1] - item[0]))):
+        overlaps_existing_match = any(
+            start < selected_end and end > selected_start
+            for selected_start, selected_end, _ in selected
+        )
+        if overlaps_existing_match:
+            continue
+
+        selected.append((start, end, course_name))
+
+    return sorted(selected, key=lambda item: item[0])
+
+
+def course_matches_cover_text(text: str, matches: list[tuple[int, int, str]]) -> bool:
+    word_spans = [(match.start(), match.end()) for match in re.finditer(r"[A-Za-z0-9]+", text)]
+    if not word_spans:
+        return False
+
+    return all(
+        any(match_start <= word_start and word_end <= match_end for match_start, match_end, _ in matches)
+        for word_start, word_end in word_spans
+    )
+
+
+def split_known_courses(value: str, common_courses: list[str]) -> list[str]:
+    item = normalize_list_item(value)
+    if not item:
+        return []
+
+    matches = select_course_matches(item, common_courses)
+    if not matches or not course_matches_cover_text(item, matches):
+        return [item]
+
+    return [course_name for _, _, course_name in matches]
+
+
+def split_category_line(line: str) -> tuple[str | None, str]:
+    match = re.match(r"^([^:]+):\s*(.*)$", line)
+    if not match:
+        return None, line
+
+    category = normalize_list_item(match.group(1))
+    text = match.group(2).strip()
+    return category or None, text
 
 
 def parse_skills(lines: list[str]) -> list[dict[str, list[str]]]:
-    text = " ".join(lines)
-    skills = split_skills(text)
-
-    unique_skills = []
+    bullets = []
     seen = set()
 
-    for skill in skills:
-        normalized_skill = skill.strip()
-        if not normalized_skill:
+    for line in lines:
+        normalized_line = normalize_list_item(line)
+        if not normalized_line:
             continue
 
-        dedupe_key = normalized_skill.lower()
-        if dedupe_key in seen:
-            continue
+        _, skill_text = split_category_line(normalized_line)
+        for skill in split_list_items(skill_text):
+            dedupe_key = skill.lower()
+            if dedupe_key in seen:
+                continue
 
-        seen.add(dedupe_key)
-        unique_skills.append(normalized_skill)
+            seen.add(dedupe_key)
+            bullets.append(skill)
 
-    return [{"skills": unique_skills}] if unique_skills else []
+    return [{"bullets": bullets}] if bullets else []
+
+
+def parse_courses(lines: list[str]) -> list[str]:
+    courses = []
+    seen = set()
+    common_courses = load_common_courses()
+
+    for line in lines:
+        for item in split_list_items(line):
+            for course in split_known_courses(item, common_courses):
+                dedupe_key = course.lower()
+                if dedupe_key in seen:
+                    continue
+
+                seen.add(dedupe_key)
+                courses.append(course)
+
+    return courses
 
 
 def parse_date_location(value: str) -> dict[str, Any]:
@@ -386,7 +488,7 @@ def parse_education(lines: list[str], course_lines: list[str] | None = None) -> 
             "start_date": month_year_to_iso(date_match.group(1)) if date_match else None,
             "end_date": month_year_to_iso(date_match.group(2)) if date_match else None,
             "gpa": gpa_match.group(1) if gpa_match else None,
-            "relevant_courses": course_lines or [],
+            "relevant_courses": parse_courses(course_lines or []),
         }
     ]
 
@@ -467,7 +569,7 @@ def main() -> None:
         "input_path",
         nargs="?",
         type=Path,
-        default=PARSED_DIR / "resume1.json",
+        default=PARSED_DIR / "resume1_parsed.json",
         help="Path to a raw Docling JSON file.",
     )
     parser.add_argument(

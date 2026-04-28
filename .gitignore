@@ -5,9 +5,18 @@ venv/
 # Python cache
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+build/
+dist/
 
 # Environment variables
 .env
+.python-version
 
 # OS files
 .DS_Store
@@ -15,3 +24,7 @@ __pycache__/
 # IDE
 .vscode/
 .idea/
+
+# Resume data
+data/parsed/
+data/llm/
