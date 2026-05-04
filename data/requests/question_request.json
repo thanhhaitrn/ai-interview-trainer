@@ -1,0 +1,16 @@
+{
+  "cv_context": [
+    "Student in Computer Science and Engineering at University of Oulu",
+    "Experience with Python, Java, SQL, and basic machine learning",
+    "Built small projects using APIs and JSON data",
+    "Interested in backend development and AI applications"
+  ],
+  "job_description_context": [
+    "Backend developer internship",
+    "Work with REST APIs, databases, and cloud services",
+    "Write clean Python code and unit tests",
+    "Collaborate with a small engineering team"
+  ],
+  "interview_type": "technical",
+  "difficulty": "medium"
+}

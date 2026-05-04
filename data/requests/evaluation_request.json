@@ -1,0 +1,20 @@
+{
+  "cv_context": [
+    "Built a React dashboard with reusable components",
+    "Integrated frontend features with external APIs",
+    "Used TypeScript in personal and coursework projects"
+  ],
+  "job_description_context": [
+    "Looking for a frontend engineer with React experience",
+    "Needs someone comfortable with API integration",
+    "Values clear communication about technical decisions"
+  ],
+  "question": "Tell me about a React project where you used API integration.",
+  "expected_good_answer_points": [
+    "Mentions a specific project",
+    "Explains how the API was integrated",
+    "Describes personal contribution",
+    "Mentions the technical outcome or learning"
+  ],
+  "student_answer": "I built a React app that fetched data from an external API and displayed it with reusable components."
+}
