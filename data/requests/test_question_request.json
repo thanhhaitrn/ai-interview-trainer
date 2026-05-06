@@ -1,0 +1,129 @@
+{
+  "resume": {
+    "document_type": "resume",
+    "source": {
+        "file_name": "resume1.pdf",
+        "page_count": 1
+    },
+    "candidate": {
+        "full_name": "Trish Mathers",
+        "headline": "Entry-Level Data Scientist"
+    },
+    "sections": [
+        {
+        "section_name": "Work Experience",
+        "items": [
+            {
+            "company": "Niantic",
+            "job_title": "Data Scientist Intern",
+            "location": "Seattle, WA",
+            "start_date": "2020-04",
+            "end_date": "2021-04",
+            "is_current": false,
+            "bullets": [
+                "Developed a program in SAS that automated refinement of linear regression models for specific segments of a customer base that saved 22 hours of labor per month.",
+                "Received, cleaned, and prepped data from client using SAS, SQL, and Excel to help data scientists build marketing mix models that resulted in a lift in ROI of 10 basis points."
+            ]
+            },
+            {
+            "company": "Seattle University Tutor Center",
+            "job_title": "Statistics and Mathematics Tutor",
+            "location": "Seattle, WA",
+            "start_date": "2019-04",
+            "end_date": "2020-04",
+            "is_current": false,
+            "bullets": [
+                "Assessed students' learning to determine learning weaknesses and needs, successfully helping students perform 13% better in algebra, pre-calculus, calculus, and statistics undergraduate courses.",
+                "Met with 30+ students per week through online learning platforms or in a 1:1 setting at the tutor center.",
+                "Scheduled weekly statistics and math appointments for students.",
+                "Communicated with professors about curriculum, and submitted reports 2 times a week to maintain up-to-date plans for students."
+            ]
+            }
+        ]
+        },
+        {
+        "section_name": "Projects",
+        "items": [
+            {
+            "project_name": "Fantasy Football Models",
+            "bullets": [
+                "Aggregated and prepped 3 years of fantasy football projection data from 3 independent sources into a MySQL database.",
+                "Created a random forest model in SAS, combining disparate sources into one projection that outperformed the mean absolute error of the next best projection by 15%."
+            ]
+            },
+            {
+            "project_name": "Entertainment Engine",
+            "bullets": [
+                "Aggregated data from IMDB and Rotten Tomatoes, and used knearest-neighbors in SAS, constructing an enhanced entertainment selection targeted to reach 15- to 25-year-olds.",
+                "Improved methodologies to save an average of 12 minutes per movie selection and 3 minutes per song selection."
+            ]
+            }
+        ]
+        },
+        {
+        "section_name": "Skills",
+        "items": [
+            {
+            "bullets": [
+                "Programming: SAS (base SAS and Macros)",
+                "SQL Supervised Learning: linear and logistic regressions",
+                "decision trees",
+                "support vector machines (SVM)",
+                "Unsupervised Learning: kmeans clustering",
+                "principal component analysis (PCA) Data Visualization: Excel",
+                "Google Sheets"
+            ]
+            }
+        ]
+        },
+        {
+        "section_name": "Education",
+        "items": [
+            {
+            "degree": "B.S.",
+            "field_of_study": "Mathematics and Economics",
+            "institution": "Seattle University",
+            "location": "Seattle, WA",
+            "start_date": "2017-09",
+            "end_date": "2021-04",
+            "gpa": "3.7",
+            "relevant_courses": [
+                "Intermediate Programming",
+                "Probability & Statistics",
+                "Linear Algebra",
+                "Applied Econometrics",
+                "Game Theory",
+                "Calculus 1-3"
+            ]
+            }
+        ]
+        }
+    ]
+  },
+  "job_description": {
+    "role_title": "Backend Developer Intern",
+    "company": "Example Tech",
+    "summary": "Build backend services and collaborate with product engineers.",
+    "responsibilities": [
+      "Develop and maintain REST APIs",
+      "Design and query relational databases",
+      "Collaborate in a small engineering team"
+    ],
+    "requirements": [
+      "Strong Python fundamentals",
+      "Comfort with SQL and data modeling",
+      "Basic unit testing skills"
+    ],
+    "preferred_skills": [
+      "Cloud services exposure",
+      "Interest in AI applications"
+    ],
+    "tech_stack": [
+      "Python",
+      "PostgreSQL",
+      "REST"
+    ]
+  },
+  "interview_type": "technical",
+  "difficulty": "medium"
+}

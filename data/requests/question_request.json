@@ -1,16 +1,75 @@
 {
-  "cv_context": [
-    "Student in Computer Science and Engineering at University of Oulu",
-    "Experience with Python, Java, SQL, and basic machine learning",
-    "Built small projects using APIs and JSON data",
-    "Interested in backend development and AI applications"
-  ],
-  "job_description_context": [
-    "Backend developer internship",
-    "Work with REST APIs, databases, and cloud services",
-    "Write clean Python code and unit tests",
-    "Collaborate with a small engineering team"
-  ],
+  "resume": {
+    "document_type": "resume",
+    "candidate": {
+      "full_name": "Linh Le",
+      "headline": "Computer Science and Engineering student"
+    },
+    "sections": [
+      {
+        "section_name": "Work Experience",
+        "items": [
+          {
+            "company": "University project teams",
+            "job_title": "Backend contributor",
+            "bullets": [
+              "Built REST-style services with Python",
+              "Worked with relational databases and SQL"
+            ]
+          }
+        ]
+      },
+      {
+        "section_name": "Projects",
+        "items": [
+          {
+            "project_name": "API Data Aggregator",
+            "bullets": [
+              "Integrated external APIs and normalized JSON payloads",
+              "Implemented clean code structure and basic tests"
+            ]
+          }
+        ]
+      },
+      {
+        "section_name": "Skills",
+        "items": [
+          {
+            "bullets": [
+              "Python",
+              "Java",
+              "SQL",
+              "Machine learning basics"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "job_description": {
+    "role_title": "Backend Developer Intern",
+    "company": "Example Tech",
+    "summary": "Build backend services and collaborate with product engineers.",
+    "responsibilities": [
+      "Develop and maintain REST APIs",
+      "Design and query relational databases",
+      "Collaborate in a small engineering team"
+    ],
+    "requirements": [
+      "Strong Python fundamentals",
+      "Comfort with SQL and data modeling",
+      "Basic unit testing skills"
+    ],
+    "preferred_skills": [
+      "Cloud services exposure",
+      "Interest in AI applications"
+    ],
+    "tech_stack": [
+      "Python",
+      "PostgreSQL",
+      "REST"
+    ]
+  },
   "interview_type": "technical",
   "difficulty": "medium"
 }

@@ -42,6 +42,9 @@ streamlit run app.py
 Local interview-agent project that generates interview questions and evaluates
 candidate answers with LangGraph-managed agent flows.
 
+Input style:
+- Preferred: structured `resume` + structured `job_description`
+- Backward compatible: flat `cv_context` + `job_description_context`
 
 ## Structure
 
@@ -91,6 +94,10 @@ That uses the default input file:
 
 `data/requests/question_request.json`
 
+The default request file now uses structured input:
+- `resume` (same shape style as normalized resume output)
+- `job_description` (role metadata, responsibilities, requirements, skills)
+
 Evaluate an answer from a JSON request file:
 
 ```bash
@@ -101,10 +108,11 @@ That uses the default input file:
 
 `data/requests/evaluation_request.json`
 
+This request also uses structured `resume` + `job_description`.
+
 You can also pass a custom input path and output folder:
 
 ```bash
 python generate_question.py data/requests/question_request.json --output-dir data/questions
 python evaluate_answer.py data/requests/evaluation_request.json --output-dir data/evaluations
 ```
-
