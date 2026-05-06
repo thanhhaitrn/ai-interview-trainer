@@ -1,3 +1,5 @@
+"""Normalize Docling resume output into a compact LLM-ready JSON schema."""
+
 from __future__ import annotations
 
 import argparse
@@ -19,6 +21,7 @@ SECTION_HEADERS_KEYWORDS = {
     "PROJECTS": ["PROJECTS"]
 }
 
+# Month names are converted to YYYY-MM strings throughout the normalized output.
 MONTHS = {
     "january": "01",
     "february": "02",
@@ -36,10 +39,12 @@ MONTHS = {
 
 
 def load_docling_json(path: Path) -> dict[str, Any]:
+    """Read a Docling JSON export from disk."""
     return json.loads(path.read_text(encoding="utf-8"))
 
 
 def extract_text_blocks(doc: dict[str, Any]) -> list[dict[str, Any]]:
+    """Collect normalized text blocks with their Docling labels and page numbers."""
     blocks = []
 
     for index, item in enumerate(doc.get("texts", [])):
@@ -64,23 +69,27 @@ def extract_text_blocks(doc: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def clean_text(value: str) -> str:
+    """Trim text and remove spaces that Docling may leave before punctuation."""
     text = value.strip()
     text = re.sub(r"\s+([.,;:])", r"\1", text)
     return text
 
 
 def page_count(blocks: list[dict[str, Any]]) -> int:
+    """Return the highest page number found in the extracted text blocks."""
     pages = [block["page_no"] for block in blocks if block.get("page_no") is not None]
     return max(pages, default=0)
 
 
 def title_case(value: str | None) -> str | None:
+    """Convert a candidate field to title case while preserving missing values."""
     if value is None:
         return None
     return value.title()
 
 
 def detect_section_header(text: str) -> str | None:
+    """Map a short heading-like line to one of the canonical resume sections."""
     upper_text = text.upper()
 
     for section, keywords in SECTION_HEADERS_KEYWORDS.items():
@@ -94,6 +103,7 @@ def detect_section_header(text: str) -> str | None:
 
 
 def is_boundary_block(block: dict[str, Any]) -> bool:
+    """Identify blocks that likely end the current section."""
     text = block["text"].strip()
     words = text.split()
 
@@ -104,6 +114,7 @@ def is_boundary_block(block: dict[str, Any]) -> bool:
 
 
 def matches_current_section(block: dict[str, Any], current_section: str | None) -> bool:
+    """Decide whether a text block still belongs to the active section."""
     if current_section is None:
         return False
 
@@ -115,6 +126,7 @@ def matches_current_section(block: dict[str, Any], current_section: str | None) 
     if current_section == "EDUCATION":
         degree_tokens = {"B.S.", "B.A.", "M.S.", "M.A.", "PH.D."}
 
+        # Uppercase short blocks usually signal a new heading, except degree names.
         if text.isupper() and word_count <= 4 and upper_text not in degree_tokens:
             return False
 
@@ -143,6 +155,7 @@ def matches_current_section(block: dict[str, Any], current_section: str | None) 
         )
 
     if current_section == "WORK EXPERIENCE":
+        # Job content can include short titles, but all-caps short text is a boundary.
         if text.isupper() and word_count <= 4:
             return False
 
@@ -154,6 +167,7 @@ def matches_current_section(block: dict[str, Any], current_section: str | None) 
         )
 
     if current_section == "PROJECTS":
+        # Project entries are often title lines followed by sentence-style bullets.
         if text.isupper() and word_count <= 4:
             return False
 
@@ -167,6 +181,7 @@ def matches_current_section(block: dict[str, Any], current_section: str | None) 
 
 
 def split_sections(blocks: list[dict[str, Any]]) -> dict[str, list[str]]:
+    """Group text blocks into canonical resume sections using heading heuristics."""
     sections: dict[str, list[str]] = {}
     current_section: str | None = None
 
@@ -192,6 +207,7 @@ def split_sections(blocks: list[dict[str, Any]]) -> dict[str, list[str]]:
 
 
 def month_year_to_iso(value: str | None) -> str | None:
+    """Convert dates like 'January 2024' into a YYYY-MM string."""
     if not value:
         return None
 
@@ -208,6 +224,7 @@ def month_year_to_iso(value: str | None) -> str | None:
 
 
 def parse_location(value: str | None) -> dict[str, str | None]:
+    """Split a comma-separated location into city, state, and country fields."""
     if not value:
         return {"city": None, "state": None, "country": None}
 
@@ -220,10 +237,12 @@ def parse_location(value: str | None) -> dict[str, str | None]:
 
 
 def normalize_list_item(value: str) -> str:
+    """Clean bullet markers, trailing punctuation, and repeated whitespace."""
     return re.sub(r"\s+", " ", value.strip(" \t\r\n-*\u2022\u00b7."))
 
 
 def split_list_items(value: str) -> list[str]:
+    """Split a delimited list while preserving commas inside parenthetical text."""
     # Split on explicit separators, but keep separators inside parentheses.
     items = []
     current = []
@@ -252,6 +271,7 @@ def split_list_items(value: str) -> list[str]:
 
 
 def load_common_courses(path: Path = COMMON_COURSES_PATH) -> list[str]:
+    """Load the curated course names used to split compact course lists."""
     if not path.exists():
         return []
 
@@ -263,6 +283,7 @@ def load_common_courses(path: Path = COMMON_COURSES_PATH) -> list[str]:
 
 
 def course_pattern(course_name: str) -> re.Pattern[str] | None:
+    """Build a regex that matches a course name across punctuation variants."""
     tokens = re.findall(r"[A-Za-z0-9]+", course_name.replace("&", " and "))
     if not tokens:
         return None
@@ -276,6 +297,7 @@ def course_pattern(course_name: str) -> re.Pattern[str] | None:
 
 
 def select_course_matches(text: str, common_courses: list[str]) -> list[tuple[int, int, str]]:
+    """Find non-overlapping known course names in their original text order."""
     matches = []
     for course_name in common_courses:
         pattern = course_pattern(course_name)
@@ -300,6 +322,7 @@ def select_course_matches(text: str, common_courses: list[str]) -> list[tuple[in
 
 
 def course_matches_cover_text(text: str, matches: list[tuple[int, int, str]]) -> bool:
+    """Check whether detected courses account for every word in the source text."""
     word_spans = [(match.start(), match.end()) for match in re.finditer(r"[A-Za-z0-9]+", text)]
     if not word_spans:
         return False
@@ -311,6 +334,7 @@ def course_matches_cover_text(text: str, matches: list[tuple[int, int, str]]) ->
 
 
 def split_known_courses(value: str, common_courses: list[str]) -> list[str]:
+    """Return known course names only when they fully cover the input item."""
     item = normalize_list_item(value)
     if not item:
         return []
@@ -324,6 +348,7 @@ def split_known_courses(value: str, common_courses: list[str]) -> list[str]:
 
 
 def parse_skills(lines: list[str]) -> list[dict[str, list[str]]]:
+    """Normalize skill lines into one de-duplicated bullet list."""
     bullets = []
     seen = set()
 
@@ -344,6 +369,7 @@ def parse_skills(lines: list[str]) -> list[dict[str, list[str]]]:
 
 
 def parse_courses(lines: list[str]) -> list[str]:
+    """Normalize and de-duplicate relevant course names."""
     courses = []
     seen = set()
     common_courses = load_common_courses()
@@ -362,6 +388,7 @@ def parse_courses(lines: list[str]) -> list[str]:
 
 
 def parse_date_location(value: str) -> dict[str, Any]:
+    """Extract start date, end date, current status, and location from job metadata."""
     date_match = re.search(
         r"([A-Za-z]+\s+\d{4})\s*-\s*([A-Za-z]+\s+\d{4}|Present)",
         value,
@@ -380,6 +407,7 @@ def parse_date_location(value: str) -> dict[str, Any]:
 
 
 def parse_work_experience(lines: list[str]) -> list[dict[str, Any]]:
+    """Convert work-experience section lines into structured job entries."""
     items = []
     index = 0
 
@@ -392,6 +420,7 @@ def parse_work_experience(lines: list[str]) -> list[dict[str, Any]]:
         date_location = lines[index + 2]
         consumed = 3
 
+        # Some Docling outputs merge the company and date/location onto one line.
         if not re.search(r"[A-Za-z]+\s+\d{4}\s*-", date_location):
             combined_line = company
             company = re.sub(r"\s+[A-Za-z]+\s+\d{4}\s*-.*$", "", combined_line).strip()
@@ -405,6 +434,7 @@ def parse_work_experience(lines: list[str]) -> list[dict[str, Any]]:
         while index < len(lines):
             next_line = lines[index]
             next_two_lines = " ".join(lines[index : index + 3])
+            # A short non-sentence line followed by dates marks the next job entry.
             looks_like_next_job = (
                 index + 1 < len(lines)
                 and not next_line.endswith(".")
@@ -432,6 +462,7 @@ def parse_work_experience(lines: list[str]) -> list[dict[str, Any]]:
 
 
 def parse_projects(lines: list[str]) -> list[dict[str, Any]]:
+    """Convert project section lines into project names with bullet details."""
     items = []
     current_project: dict[str, Any] | None = None
 
@@ -456,6 +487,7 @@ def parse_projects(lines: list[str]) -> list[dict[str, Any]]:
 
 
 def parse_education(lines: list[str], course_lines: list[str] | None = None) -> list[dict[str, Any]]:
+    """Convert education lines plus course lines into one structured school entry."""
     if not lines:
         return []
 
@@ -484,6 +516,7 @@ def parse_education(lines: list[str], course_lines: list[str] | None = None) -> 
 
 
 def split_field_and_institution(value: str) -> tuple[str | None, str | None]:
+    """Separate field of study from the institution name when both are present."""
     words = value.split()
 
     if len(words) >= 2 and words[-1] in {"University", "College", "Institute", "School"}:
@@ -499,6 +532,7 @@ def split_field_and_institution(value: str) -> tuple[str | None, str | None]:
 
 
 def normalize_resume(docling_json_path: Path) -> dict[str, Any]:
+    """Normalize one Docling resume JSON file into the target LLM schema."""
     doc = load_docling_json(docling_json_path)
     blocks = extract_text_blocks(doc)
     sections = split_sections(blocks)
@@ -540,6 +574,7 @@ def normalize_resume(docling_json_path: Path) -> dict[str, Any]:
 
 
 def save_llm_resume(docling_json_path: Path, output_dir: Path = LLM_DIR) -> Path:
+    """Normalize a Docling JSON file and write the LLM-ready JSON output."""
     output_dir.mkdir(parents=True, exist_ok=True)
     normalized = normalize_resume(docling_json_path)
     new_name = f"{docling_json_path.stem}_llm{docling_json_path.suffix}"
@@ -554,6 +589,7 @@ def save_llm_resume(docling_json_path: Path, output_dir: Path = LLM_DIR) -> Path
 
 
 def main() -> None:
+    """Run the command-line normalization workflow."""
     parser = argparse.ArgumentParser(description="Convert Docling resume JSON into LLM-ready resume JSON.")
     parser.add_argument(
         "input_path",
