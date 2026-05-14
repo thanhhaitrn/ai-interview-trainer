@@ -1,3 +1,5 @@
+"""Convert raw resume PDFs into Docling's structured JSON format."""
+
 import argparse
 import json
 from pathlib import Path
@@ -8,6 +10,7 @@ PARSED_DIR = Path("data/parsed")
 
 
 def parse_pdf_to_json(pdf_path: Path, output_dir: Path = PARSED_DIR) -> Path:
+    """Parse one PDF file and save the exported Docling document dictionary."""
     from docling.document_converter import DocumentConverter
 
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -26,6 +29,7 @@ def parse_pdf_to_json(pdf_path: Path, output_dir: Path = PARSED_DIR) -> Path:
 
 
 def main() -> None:
+    """Run the command-line PDF parsing workflow."""
     parser = argparse.ArgumentParser(description="Parse a resume PDF into Docling JSON.")
     parser.add_argument(
         "input_path",
