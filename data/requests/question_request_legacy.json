@@ -1,0 +1,14 @@
+{
+  "cv_context": [
+    "Student backend project using Python and REST APIs",
+    "Used SQL for relational database operations",
+    "Experience debugging query and endpoint issues"
+  ],
+  "job_description_context": [
+    "Junior backend developer role",
+    "Requires API development and database fundamentals",
+    "Values clear communication and learning ability"
+  ],
+  "interview_type": "technical",
+  "difficulty": "medium"
+}

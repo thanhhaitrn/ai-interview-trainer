@@ -40,11 +40,14 @@ streamlit run app.py
 
 ## Interview Question Generation and Evaluation
 Local interview-agent project that generates interview questions and evaluates
-candidate answers with LangGraph-managed agent flows.
+candidate answers with one unified AI agent profile.
 
 Input style:
 - Preferred: structured `resume` + structured `job_description`
 - Backward compatible: flat `cv_context` + `job_description_context`
+- Optional advanced config:
+  - `interview_config` for rubric-driven structured question generation
+  - `evaluation_config` for weighted criteria, anchors, fairness, and evidence rules
 
 ## Structure
 
@@ -71,19 +74,6 @@ Save Mermaid text to a file:
 python show_workflow.py --output-path workflow.mmd
 ```
 
-Save PNG workflow diagrams generated directly by `draw_mermaid_png()`:
-
-```bash
-python show_workflow.py --png-output-dir data/workflow
-```
-
-If `mermaid.ink` is blocked in your environment, use local rendering:
-
-```bash
-pip install pyppeteer
-python show_workflow.py --png-output-dir data/workflow --png-draw-method pyppeteer
-```
-
 Generate a question from a JSON request file:
 
 ```bash
@@ -97,6 +87,7 @@ That uses the default input file:
 The default request file now uses structured input:
 - `resume` (same shape style as normalized resume output)
 - `job_description` (role metadata, responsibilities, requirements, skills)
+- `interview_config` (stage, techniques, competencies, constraints, fairness)
 
 Evaluate an answer from a JSON request file:
 
@@ -109,6 +100,7 @@ That uses the default input file:
 `data/requests/evaluation_request.json`
 
 This request also uses structured `resume` + `job_description`.
+It also includes `evaluation_config` with weighted criteria and rating anchors.
 
 You can also pass a custom input path and output folder:
 
@@ -116,3 +108,7 @@ You can also pass a custom input path and output folder:
 python generate_question.py data/requests/question_request.json --output-dir data/questions
 python evaluate_answer.py data/requests/evaluation_request.json --output-dir data/evaluations
 ```
+
+Legacy examples remain available:
+- `data/requests/question_request_legacy.json`
+- `data/requests/evaluation_request_legacy.json`

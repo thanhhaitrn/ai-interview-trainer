@@ -1,19 +1,24 @@
 {
   "resume": {
     "document_type": "resume",
+    "source": {
+      "file_name": "resume1.pdf",
+      "page_count": 1
+    },
     "candidate": {
-      "full_name": "Linh Le",
-      "headline": "Frontend-focused software engineering student"
+      "full_name": "Trish Mathers",
+      "headline": "Entry-Level Data Scientist"
     },
     "sections": [
       {
-        "section_name": "Projects",
+        "section_name": "Work Experience",
         "items": [
           {
-            "project_name": "React Dashboard",
+            "company": "Niantic",
+            "job_title": "Data Scientist Intern",
             "bullets": [
-              "Built reusable components with TypeScript",
-              "Integrated external APIs for live data visualization"
+              "Automated regression workflow in SAS.",
+              "Prepared SQL datasets for modeling."
             ]
           }
         ]
@@ -23,9 +28,10 @@
         "items": [
           {
             "bullets": [
-              "React",
-              "TypeScript",
-              "API Integration"
+              "Python",
+              "SQL",
+              "Debugging",
+              "Data analysis"
             ]
           }
         ]
@@ -33,32 +39,82 @@
     ]
   },
   "job_description": {
-    "role_title": "Frontend Engineer",
-    "summary": "Build user interfaces with React and collaborate across teams.",
+    "role_title": "Junior Backend Developer",
+    "company": "Nordic Cloud Labs",
+    "seniority": "junior",
+    "summary": "Build backend services and troubleshoot production issues.",
     "responsibilities": [
-      "Implement maintainable React features",
-      "Integrate frontend components with backend APIs",
-      "Communicate technical tradeoffs clearly"
+      "Implement Python APIs",
+      "Maintain SQL schemas",
+      "Debug incidents and communicate root cause"
     ],
     "requirements": [
-      "Experience with React and TypeScript",
-      "Strong API integration fundamentals"
-    ],
-    "preferred_skills": [
-      "Clear written and verbal communication"
+      "Python and REST fundamentals",
+      "SQL and relational data basics",
+      "Clear technical communication"
     ],
     "tech_stack": [
-      "React",
-      "TypeScript",
+      "Python",
+      "PostgreSQL",
       "REST APIs"
     ]
   },
-  "question": "Tell me about a React project where you used API integration.",
+  "question": "Describe a specific time you debugged a backend API issue. What was the incident, how did you diagnose it, what did you change, and what was the outcome?",
   "expected_good_answer_points": [
-    "Mentions a specific project",
-    "Explains how the API was integrated",
-    "Describes personal contribution",
-    "Mentions the technical outcome or learning"
+    "Describes one concrete production or project incident",
+    "Explains diagnosis steps and evidence",
+    "Explains root cause and fix",
+    "Mentions tradeoffs or validation checks",
+    "Mentions measurable or observable outcome"
   ],
-  "student_answer": "I built a React app that fetched data from an external API and displayed it with reusable components."
+  "candidate_answer": "In one project, an endpoint was timing out. I checked logs and saw repeated expensive queries. I added an index and changed the query shape, then tested the endpoint with sample load. Response time dropped from around 2 seconds to under 300 milliseconds.",
+  "evaluation_config": {
+    "evaluation_mode": "coaching",
+    "scale": "1-5",
+    "evidence_required": true,
+    "rubric": {
+      "criteria": [
+        {
+          "name": "Technical Accuracy",
+          "weight": 30,
+          "description": "Correctness, relevance, and depth of technical explanation"
+        },
+        {
+          "name": "Specific Evidence",
+          "weight": 25,
+          "description": "Uses concrete examples, implementation details, decisions, metrics, or outcomes"
+        },
+        {
+          "name": "Problem-Solving Process",
+          "weight": 20,
+          "description": "Shows clear reasoning, decomposition, debugging, or tradeoff analysis"
+        },
+        {
+          "name": "Communication Clarity",
+          "weight": 15,
+          "description": "Answer is structured, understandable, and concise"
+        },
+        {
+          "name": "Role Relevance",
+          "weight": 10,
+          "description": "Answer maps clearly to the job requirements and target competency"
+        }
+      ],
+      "rating_anchors": {
+        "1": "Very weak: no relevant evidence, incorrect, vague, or unrelated answer",
+        "2": "Weak: partially relevant but shallow, incomplete, or contains major gaps",
+        "3": "Acceptable: mostly relevant answer with some concrete evidence but limited depth",
+        "4": "Strong: clear, relevant, evidence-based answer with good reasoning and details",
+        "5": "Excellent: deep, specific, well-structured answer with tradeoffs, outcomes, and strong job alignment"
+      }
+    },
+    "fairness_rules": {
+      "job_related_only": true,
+      "ignore_protected_characteristics": true,
+      "do_not_penalize_non_native_english": true,
+      "score_only_observed_evidence": true,
+      "avoid_school_prestige_bias": true,
+      "do_not_infer_missing_information": true
+    }
+  }
 }

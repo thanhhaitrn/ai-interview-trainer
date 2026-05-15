@@ -27,7 +27,7 @@ def get_model_settings():
     }
 
 
-def call_ollama_api(prompt: str, task: str) -> str:
+def call_ollama_api(prompt: str) -> str:
     """Send a prompt to an Ollama server using its `/api/generate` route."""
     # Pull the current settings each time so runtime changes are respected.
     settings = get_model_settings()
@@ -77,6 +77,6 @@ def call_ollama_api(prompt: str, task: str) -> str:
     return data["response"]
 
 
-def call_llm_api(prompt: str, task: str) -> str:
-    """Call Ollama for both question generation and answer evaluation."""
-    return call_ollama_api(prompt=prompt, task=task)
+def call_llm_api(prompt: str) -> str:
+    """Call Ollama and return generated JSON text."""
+    return call_ollama_api(prompt=prompt)

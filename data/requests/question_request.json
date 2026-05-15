@@ -1,20 +1,28 @@
 {
   "resume": {
     "document_type": "resume",
+    "source": {
+      "file_name": "resume1.pdf",
+      "page_count": 1
+    },
     "candidate": {
-      "full_name": "Linh Le",
-      "headline": "Computer Science and Engineering student"
+      "full_name": "Trish Mathers",
+      "headline": "Entry-Level Data Scientist"
     },
     "sections": [
       {
         "section_name": "Work Experience",
         "items": [
           {
-            "company": "University project teams",
-            "job_title": "Backend contributor",
+            "company": "Niantic",
+            "job_title": "Data Scientist Intern",
+            "location": "Seattle, WA",
+            "start_date": "2020-04",
+            "end_date": "2021-04",
+            "is_current": false,
             "bullets": [
-              "Built REST-style services with Python",
-              "Worked with relational databases and SQL"
+              "Automated regression refinement in SAS, saving 22 hours per month.",
+              "Cleaned and prepared SQL/SAS datasets for marketing mix modeling."
             ]
           }
         ]
@@ -23,10 +31,10 @@
         "section_name": "Projects",
         "items": [
           {
-            "project_name": "API Data Aggregator",
+            "project_name": "Fantasy Football Models",
             "bullets": [
-              "Integrated external APIs and normalized JSON payloads",
-              "Implemented clean code structure and basic tests"
+              "Aggregated multi-source projection data into MySQL.",
+              "Built a random forest model that improved prediction error by 15%."
             ]
           }
         ]
@@ -37,9 +45,10 @@
           {
             "bullets": [
               "Python",
-              "Java",
               "SQL",
-              "Machine learning basics"
+              "SAS",
+              "Debugging",
+              "Data modeling"
             ]
           }
         ]
@@ -47,29 +56,95 @@
     ]
   },
   "job_description": {
-    "role_title": "Backend Developer Intern",
-    "company": "Example Tech",
-    "summary": "Build backend services and collaborate with product engineers.",
+    "role_title": "Junior Backend Developer",
+    "company": "Nordic Cloud Labs",
+    "location": "Helsinki, Finland",
+    "seniority": "junior",
+    "employment_type": "full-time",
+    "summary": "Build and maintain backend APIs used by internal and customer-facing products.",
     "responsibilities": [
-      "Develop and maintain REST APIs",
-      "Design and query relational databases",
-      "Collaborate in a small engineering team"
+      "Design and implement REST APIs in Python",
+      "Write SQL queries and maintain relational schemas",
+      "Debug production issues and explain root causes",
+      "Collaborate with frontend and product engineers"
     ],
     "requirements": [
       "Strong Python fundamentals",
-      "Comfort with SQL and data modeling",
-      "Basic unit testing skills"
+      "Understanding of REST principles",
+      "Basic SQL schema and query skills",
+      "Clear communication in technical discussions"
     ],
     "preferred_skills": [
-      "Cloud services exposure",
-      "Interest in AI applications"
+      "Experience with unit tests",
+      "Comfort reading logs and tracing failures",
+      "Demonstrated learning from project feedback"
     ],
     "tech_stack": [
       "Python",
+      "FastAPI",
       "PostgreSQL",
-      "REST"
+      "Docker"
     ]
   },
   "interview_type": "technical",
-  "difficulty": "medium"
+  "difficulty": "medium",
+  "interview_config": {
+    "interview_stage": "technical_screen",
+    "seniority_level": "junior",
+    "difficulty_level": "medium",
+    "question_count": 6,
+    "question_techniques": [
+      "project_deep_dive",
+      "technical_probe",
+      "situational",
+      "behavioral_star"
+    ],
+    "competencies": [
+      {
+        "name": "Backend API Development",
+        "description": "Can design, implement, test, and explain REST API behavior",
+        "weight": 30
+      },
+      {
+        "name": "Database Fundamentals",
+        "description": "Can reason about SQL, schemas, relationships, and data access",
+        "weight": 20
+      },
+      {
+        "name": "Debugging",
+        "description": "Can investigate, isolate, and resolve technical problems",
+        "weight": 20
+      },
+      {
+        "name": "Communication",
+        "description": "Can explain technical decisions clearly and concisely",
+        "weight": 15
+      },
+      {
+        "name": "Learning Ability",
+        "description": "Can learn from mistakes, feedback, and unfamiliar technologies",
+        "weight": 15
+      }
+    ],
+    "question_constraints": {
+      "avoid_yes_no_questions": true,
+      "avoid_trivia": true,
+      "avoid_leading_questions": true,
+      "avoid_multi_part_questions": false,
+      "require_followups": true,
+      "require_expected_signals": true,
+      "require_red_flags": true,
+      "require_reason_for_asking": true,
+      "require_resume_grounding": true,
+      "require_job_alignment": true
+    },
+    "fairness_rules": {
+      "job_related_only": true,
+      "ignore_protected_characteristics": true,
+      "do_not_penalize_non_native_english": true,
+      "score_only_observed_evidence": true,
+      "avoid_school_prestige_bias": true,
+      "do_not_infer_missing_information": true
+    }
+  }
 }

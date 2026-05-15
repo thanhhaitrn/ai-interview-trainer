@@ -1,0 +1,19 @@
+{
+  "cv_context": [
+    "Built backend services in Python",
+    "Used SQL to model and query relational data",
+    "Debugged API and database performance issues"
+  ],
+  "job_description_context": [
+    "Junior backend engineer role",
+    "Requires API implementation, SQL fundamentals, and debugging",
+    "Needs clear technical communication"
+  ],
+  "question": "Tell me about a time you debugged an API performance issue.",
+  "expected_good_answer_points": [
+    "Clear incident",
+    "Diagnosis steps",
+    "Fix and outcome"
+  ],
+  "student_answer": "I investigated slow API responses by checking logs, identified an unindexed query, added an index, and validated response time improvements."
+}
