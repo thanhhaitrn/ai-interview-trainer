@@ -5,14 +5,16 @@ import json
 from pathlib import Path
 
 
-RAW_DIR = Path("data/raw")
-PARSED_DIR = Path("data/parsed")
+RAW_DIR = Path("data/resumes/raw")
+PARSED_DIR = Path("data/resumes/parsed")
 
 
-def parse_pdf_to_json(pdf_path: Path, output_dir: Path = PARSED_DIR) -> Path:
+def parse_pdf_to_json(pdf_path: str | Path, output_dir: str | Path = PARSED_DIR) -> Path:
     """Parse one PDF file and save the exported Docling document dictionary."""
     from docling.document_converter import DocumentConverter
 
+    pdf_path = Path(pdf_path)
+    output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
     converter = DocumentConverter()

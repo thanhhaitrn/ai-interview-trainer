@@ -9,8 +9,8 @@ from pathlib import Path
 from typing import Any
 
 
-PARSED_DIR = Path("data/parsed")
-LLM_DIR = Path("data/llm")
+PARSED_DIR = Path("data/resumes/parsed")
+LLM_DIR = Path("data/resumes/llm")
 COMMON_COURSES_PATH = Path(__file__).with_name("common_university_courses.txt")
 
 SECTION_HEADERS_KEYWORDS = {
@@ -38,8 +38,9 @@ MONTHS = {
 }
 
 
-def load_docling_json(path: Path) -> dict[str, Any]:
+def load_docling_json(path: str | Path) -> dict[str, Any]:
     """Read a Docling JSON export from disk."""
+    path = Path(path)
     return json.loads(path.read_text(encoding="utf-8"))
 
 
@@ -531,8 +532,9 @@ def split_field_and_institution(value: str) -> tuple[str | None, str | None]:
     return value or None, None
 
 
-def normalize_resume(docling_json_path: Path) -> dict[str, Any]:
+def normalize_resume(docling_json_path: str | Path) -> dict[str, Any]:
     """Normalize one Docling resume JSON file into the target LLM schema."""
+    docling_json_path = Path(docling_json_path)
     doc = load_docling_json(docling_json_path)
     blocks = extract_text_blocks(doc)
     sections = split_sections(blocks)
@@ -573,8 +575,13 @@ def normalize_resume(docling_json_path: Path) -> dict[str, Any]:
     }
 
 
-def save_llm_resume(docling_json_path: Path, output_dir: Path = LLM_DIR) -> Path:
+def save_llm_resume(
+    docling_json_path: str | Path,
+    output_dir: str | Path = LLM_DIR,
+) -> Path:
     """Normalize a Docling JSON file and write the LLM-ready JSON output."""
+    docling_json_path = Path(docling_json_path)
+    output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     normalized = normalize_resume(docling_json_path)
     new_name = f"{docling_json_path.stem}_llm{docling_json_path.suffix}"

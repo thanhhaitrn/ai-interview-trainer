@@ -8,7 +8,7 @@ from pathlib import Path
 import streamlit as st
 
 
-LLM_DIR = Path("data/llm")
+LLM_DIR = Path("data/resumes/llm")
 
 
 def list_resume_files(directory: Path = LLM_DIR) -> list[Path]:
