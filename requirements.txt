@@ -6,3 +6,4 @@ python-dotenv==1.2.2
 requests==2.33.1
 ollama
 qdrant-client
+opencv-python
