@@ -112,3 +112,35 @@ python evaluate_answer.py data/requests/evaluation_request.json --output-dir dat
 Legacy examples remain available:
 - `data/requests/question_request_legacy.json`
 - `data/requests/evaluation_request_legacy.json`
+
+## Video Analysis Quick Test
+
+Install OpenCV if needed:
+
+```bash
+./.venv/bin/python -m pip install -r requirements.txt
+```
+
+Record a short webcam interview answer and print JSON analysis:
+
+```bash
+PYTHONPATH=. ./.venv/bin/python experiments/video_interview_terminal.py
+```
+
+When prompted, enter `y`. Temporary recordings are saved under
+`runtime_uploads/temp_recordings/` and deleted after analysis unless you pass
+`--keep-temp`.
+
+Analyze an existing video instead:
+
+```bash
+PYTHONPATH=. ./.venv/bin/python experiments/video_interview_terminal.py --sample-every-n 5
+```
+
+When prompted, enter `n`, then paste the video path.
+
+Live webcam face-detection debug test:
+
+```bash
+./.venv/bin/python experiments/face_camera_test.py --debug-raw
+```
