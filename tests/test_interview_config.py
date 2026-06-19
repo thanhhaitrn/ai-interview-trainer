@@ -6,9 +6,13 @@ import json
 import unittest
 from pathlib import Path
 
-from app.interview_agent import InterviewAgent, InterviewAgentProfile
-from app.schemas import EvaluationRequest, QuestionRequest
-from app.service import build_evaluation_profile, build_question_profile
+from app.agent import get_agent_profile
+from app.agent.prompts import build_evaluation_prompt, build_question_prompt
+from app.agent.profile import (
+    build_evaluation_profile,
+    build_question_profile,
+)
+from app.graph.schemas import EvaluationRequest, QuestionRequest
 
 
 class InterviewConfigTestCase(unittest.TestCase):
@@ -17,67 +21,86 @@ class InterviewConfigTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.project_root = Path(__file__).resolve().parents[1]
-        cls.agent = InterviewAgent(profile=InterviewAgentProfile())
+        cls.fixtures_dir = cls.project_root / "tests" / "fixtures"
 
     def test_question_profile_loads_rich_config(self):
         payload = json.loads(
-            (self.project_root / "data/requests/question_request.json").read_text(encoding="utf-8")
+            (self.fixtures_dir / "question_request.json").read_text(encoding="utf-8")
         )
         request = QuestionRequest.model_validate(payload)
         profile = build_question_profile(request)
 
-        self.assertEqual(profile.interview_stage, "technical_screen")
-        self.assertEqual(profile.seniority_level, "junior")
-        self.assertEqual(profile.question_count, 6)
-        self.assertIn("situational", profile.question_techniques)
-        self.assertTrue(profile.question_constraints["require_followups"])
+        self.assertEqual(profile["interview_stage"], "technical_screen")
+        self.assertEqual(profile["seniority_level"], "junior")
+        self.assertEqual(profile["question_count"], 6)
+        self.assertIn("situational", profile["question_techniques"])
+        self.assertFalse(profile["question_constraints"]["require_followups"])
+        self.assertTrue(profile["question_constraints"]["allow_dynamic_followups"])
+        self.assertEqual(profile["max_followups_per_question"], 1)
+
+    def test_question_profile_leaves_optional_levels_unset_without_config(self):
+        request = QuestionRequest.model_validate(
+            {
+                "cv_context": ["Built REST APIs"],
+                "job_description_context": ["Backend role requiring API work"],
+            }
+        )
+        profile = build_question_profile(request)
+
+        self.assertIsNone(profile["seniority_level"])
+        self.assertIsNone(profile["difficulty_level"])
+        self.assertEqual(profile["question_count"], get_agent_profile()["question_count"])
 
     def test_evaluation_profile_loads_rich_config(self):
         payload = json.loads(
-            (self.project_root / "data/requests/evaluation_request.json").read_text(encoding="utf-8")
+            (self.fixtures_dir / "evaluation_request.json").read_text(encoding="utf-8")
         )
         request = EvaluationRequest.model_validate(payload)
         profile = build_evaluation_profile(request)
 
-        self.assertEqual(profile.evaluation_mode, "coaching")
-        self.assertEqual(profile.scale, "1-5")
-        self.assertTrue(profile.evidence_required)
-        self.assertIn("1", profile.rating_anchors)
-        self.assertGreaterEqual(len(profile.rubric), 5)
+        self.assertEqual(profile["evaluation_mode"], "coaching")
+        self.assertEqual(profile["scale"], "1-5")
+        self.assertTrue(profile["evidence_required"])
+        self.assertIn("1", profile["rating_anchors"])
+        self.assertGreaterEqual(len(profile["rubric"]), 5)
 
     def test_question_prompt_contains_required_sections(self):
-        prompt = self.agent._build_question_prompt(
+        prompt = build_question_prompt(
             cv_context=["Built REST APIs", "Used SQL and debugging workflows"],
             job_description_context=["Junior backend role", "Requires API and SQL fundamentals"],
             interview_type="technical",
             difficulty="medium",
-            profile=InterviewAgentProfile(),
+            profile=get_agent_profile(),
         )
 
-        self.assertIn("Structured Employment Interview", prompt)
-        self.assertIn("Critical Incident Technique", prompt)
-        self.assertIn("Situational Interview", prompt)
-        self.assertIn("Behavior Description Interview", prompt)
-        self.assertIn("Output JSON schema", prompt)
+        self.assertIn("You are Structured interview designer", prompt)
+        self.assertIn("Resume JSON", prompt)
+        self.assertIn("Job description JSON", prompt)
+        self.assertIn("Interview config JSON", prompt)
+        self.assertIn("infer the", prompt)
+        self.assertIn("Do not leave output fields blank", prompt)
+        self.assertIn("Do not pre-generate follow-up questions", prompt)
+        self.assertIn("max_followups_per_question", prompt)
+        self.assertIn("GeneratedQuestionOutput", prompt)
         self.assertIn('"expected_strong_answer_signals"', prompt)
-        self.assertIn('"follow_up_questions"', prompt)
+        self.assertIn("Task:", prompt)
 
     def test_evaluation_prompt_contains_rubric_and_evidence_rules(self):
-        prompt = self.agent._build_evaluation_prompt(
+        prompt = build_evaluation_prompt(
             cv_context=["Implemented backend APIs in Python"],
             job_description_context=["Role requires API debugging and communication"],
             question="Tell me about a backend incident you resolved.",
             expected_good_answer_points=["Incident", "Diagnosis", "Fix", "Outcome"],
             student_answer="I investigated logs, identified a query bottleneck, and improved latency.",
-            profile=InterviewAgentProfile(),
+            profile=get_agent_profile(),
         )
 
-        self.assertIn("Behaviorally Anchored Rating Scales", prompt)
-        self.assertIn("Rubric criteria", prompt)
-        self.assertIn("Rating anchors", prompt)
-        self.assertIn("Score only what is present in the answer.", prompt)
-        self.assertIn('"hiring_signal"', prompt)
-        self.assertIn('"evidence_from_answer"', prompt)
+        self.assertIn("Evaluation config JSON", prompt)
+        self.assertIn("Rubric JSON", prompt)
+        self.assertIn("Rating anchors JSON", prompt)
+        self.assertIn("Score only observed answer evidence", prompt)
+        self.assertIn("EvaluatedAnswerOutput", prompt)
+        self.assertIn("Candidate answer", prompt)
 
 
 if __name__ == "__main__":

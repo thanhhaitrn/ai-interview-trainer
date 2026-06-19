@@ -67,7 +67,8 @@ class QuestionConstraints(BaseModel):
     avoid_trivia: bool = True
     avoid_leading_questions: bool = True
     avoid_multi_part_questions: bool = False
-    require_followups: bool = True
+    require_followups: bool = False
+    allow_dynamic_followups: bool = True
     require_expected_signals: bool = True
     require_red_flags: bool = True
     require_reason_for_asking: bool = True
@@ -90,8 +91,8 @@ class InterviewConfig(BaseModel):
     """Configurable structured-interview design settings."""
 
     interview_stage: str = "technical_screen"
-    seniority_level: str = "junior"
-    difficulty_level: str = "medium"
+    seniority_level: str | None = None
+    difficulty_level: str | None = None
     question_count: int | None = None
     question_techniques: List[str] = Field(default_factory=list)
     competencies: List[Competency] = Field(default_factory=list)
@@ -133,19 +134,15 @@ class EvaluationConfig(BaseModel):
 class QuestionRequest(BaseModel):
     """Input payload for question generation (structured-first, legacy-compatible)."""
 
-    # Structured inputs (preferred).
     resume: ResumeDocument | None = None
     job_description: JobDescriptionDocument | None = None
 
-    # Legacy flat fields (kept for backward compatibility).
     cv_context: List[str] = Field(default_factory=list)
     job_description_context: List[str] = Field(default_factory=list)
 
-    # Legacy high-level fields.
     interview_type: str = "technical"
-    difficulty: str = "medium"
+    difficulty: str | None = None
 
-    # New optional config object.
     interview_config: InterviewConfig | None = None
 
     @model_validator(mode="after")
@@ -165,11 +162,9 @@ class QuestionRequest(BaseModel):
 class EvaluationRequest(BaseModel):
     """Input payload for answer evaluation (structured-first, legacy-compatible)."""
 
-    # Structured inputs (preferred).
     resume: ResumeDocument | None = None
     job_description: JobDescriptionDocument | None = None
 
-    # Legacy flat fields (kept for backward compatibility).
     cv_context: List[str] = Field(default_factory=list)
     job_description_context: List[str] = Field(default_factory=list)
 
@@ -178,7 +173,6 @@ class EvaluationRequest(BaseModel):
     student_answer: str | None = None
     candidate_answer: str | None = None
 
-    # New optional config object.
     evaluation_config: EvaluationConfig | None = None
 
     @model_validator(mode="after")

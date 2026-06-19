@@ -11,3 +11,9 @@ __pycache__/
 data/questions/
 data/evaluations/
 runtime_uploads/
+data/interview_runs/
+db/*.db
+db/*.sqlite
+db/*.sqlite3
+
+src/
