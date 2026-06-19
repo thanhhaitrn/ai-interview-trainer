@@ -144,3 +144,5 @@ Live webcam face-detection debug test:
 ```bash
 ./.venv/bin/python experiments/face_camera_test.py --debug-raw
 ```
+
+Link to measurements table: https://docs.google.com/document/d/1LsQhwQZJxvMVPBCeOIe63j1x1Hq3iidA3vKOKCjCyyk/edit?usp=sharing
