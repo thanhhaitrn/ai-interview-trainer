@@ -439,6 +439,7 @@ def _save_interview_outputs(
         "metadata": metadata,
         "workflow_trace": state.get("trace", []),
         "llm_calls": llm_calls,
+        "document_brief": state.get("document_brief", {}),
         "planned_questions": state.get("planned_questions", []),
         "turn_summaries": state.get("turn_summaries", []),
         "turns": state.get("turns", []),

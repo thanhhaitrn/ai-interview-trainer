@@ -60,6 +60,14 @@ class InterviewWorkflowTestCase(unittest.TestCase):
                         "seniority_level": "junior",
                         "difficulty_level": "medium",
                         "question_count": 2,
+                        "document_brief": {
+                            "candidate_summary": "Backend candidate with API and SQL experience.",
+                            "role_summary": "Backend Engineer role focused on APIs and SQL performance.",
+                            "key_resume_evidence": ["REST API work", "SQL debugging"],
+                            "key_job_requirements": ["Build APIs", "Debug SQL performance"],
+                            "role_alignment_notes": ["API and SQL evidence aligns to the role."],
+                            "fairness_notes": ["Score only observed evidence."],
+                        },
                         "questions": [
                             {
                                 "id": "q1",
@@ -105,6 +113,8 @@ class InterviewWorkflowTestCase(unittest.TestCase):
                 prompt_text = prompt.to_string()
                 self.assertNotIn("Resume JSON", prompt_text)
                 self.assertNotIn("Job description JSON", prompt_text)
+                self.assertIn("Document brief JSON", prompt_text)
+                self.assertIn("Backend candidate with API and SQL experience.", prompt_text)
                 self.assertIn("Question JSON", prompt_text)
                 self.assertNotIn("Built REST APIs with SQL debugging.", prompt_text)
                 return schema.model_validate(
@@ -132,6 +142,8 @@ class InterviewWorkflowTestCase(unittest.TestCase):
             if schema is TurnDecisionOutput:
                 prompt_text = prompt.to_string()
                 decision_prompts.append(prompt_text)
+                self.assertIn("Document brief JSON", prompt_text)
+                self.assertIn("Debug SQL performance", prompt_text)
                 self.assertIn("Current question JSON", prompt_text)
                 self.assertIn("Latest evaluation JSON", prompt_text)
                 self.assertNotIn('"question": {', prompt_text)
@@ -145,6 +157,8 @@ class InterviewWorkflowTestCase(unittest.TestCase):
 
             if schema is FinalInterviewReportOutput:
                 prompt_text = prompt.to_string()
+                self.assertIn("Document brief JSON", prompt_text)
+                self.assertIn("Backend Engineer role focused on APIs", prompt_text)
                 self.assertIn("turns JSON", prompt_text)
                 self.assertIn("question_text", prompt_text)
                 self.assertNotIn('"question": {', prompt_text)
@@ -202,8 +216,18 @@ class InterviewWorkflowTestCase(unittest.TestCase):
             final_state["turn_summaries"][0]["question_text"],
             "Describe an API you built.",
         )
+        self.assertEqual(final_state["turn_summaries"][0]["turn_index"], 1)
+        self.assertEqual(final_state["turn_summaries"][0]["question_index"], 1)
+        self.assertEqual(final_state["turn_summaries"][1]["turn_index"], 2)
+        self.assertEqual(final_state["turn_summaries"][1]["question_index"], 2)
         self.assertEqual(final_state["turn_summaries"][0]["decision_action"], "next_question")
         self.assertEqual(final_state["turns"][0]["routed_action"], "next_question")
+        self.assertEqual(final_state["turns"][0]["question_index"], 0)
+        self.assertIn("document_brief", final_state)
+        self.assertEqual(
+            final_state["document_brief"]["candidate_summary"],
+            "Backend candidate with API and SQL experience.",
+        )
         self.assertGreaterEqual(len(final_state["trace"]), 7)
         self.assertNotIn(
             "I designed REST endpoints and tested error handling.",
@@ -214,6 +238,7 @@ class InterviewWorkflowTestCase(unittest.TestCase):
         state = {
             "resume_context": "{}",
             "job_description_context": "{}",
+            "document_brief": {"candidate_summary": "Existing compact brief."},
             "interview_type": "technical",
             "difficulty": "medium",
             "profile": get_agent_profile(question_count=2),
@@ -241,6 +266,10 @@ class InterviewWorkflowTestCase(unittest.TestCase):
         self.assertEqual(result["planned_questions"][0]["id"], "q1")
         self.assertEqual(result["planned_questions"][1]["id"], "q2")
         self.assertEqual(result["interview_plan"]["questions"][0]["id"], "q1")
+        self.assertEqual(
+            result["document_brief"]["candidate_summary"],
+            "Existing compact brief.",
+        )
 
     def test_question_limit_forces_final_report(self):
         payload = {
@@ -359,6 +388,36 @@ class InterviewWorkflowTestCase(unittest.TestCase):
         self.assertEqual(asked_question["competency"], "API Development")
         self.assertEqual(result["current_answer"], "Latency improved by 20%.")
         self.assertEqual(result["current_question"], asked_question)
+        self.assertEqual(result["last_node"], "ask_question")
+        self.assertEqual(result["trace"][0]["node"], "ask_followup_question")
+        self.assertEqual(
+            result["trace"][0]["message"],
+            "Received candidate answer for follow-up question.",
+        )
+
+    def test_ask_question_trace_keeps_base_question_label(self):
+        state = {
+            "debug_trace": True,
+            "planned_questions": [
+                {
+                    "id": "q1",
+                    "question": "Describe a backend API you implemented.",
+                    "competency": "API Development",
+                }
+            ],
+            "current_question_index": 0,
+            "pending_followup_question": None,
+        }
+
+        with patch(
+            "app.graph.nodes.interrupt",
+            return_value={"answer": "I built REST endpoints."},
+        ):
+            result = ask_question_node(state)
+
+        self.assertEqual(result["last_node"], "ask_question")
+        self.assertEqual(result["trace"][0]["node"], "ask_question")
+        self.assertEqual(result["trace"][0]["message"], "Received candidate answer.")
 
     def test_followup_is_generated_after_answer_and_limited_to_one(self):
         payload = {
@@ -454,6 +513,11 @@ class InterviewWorkflowTestCase(unittest.TestCase):
 
         self.assertEqual(final_state["status"], "completed")
         self.assertEqual(len(final_state["turns"]), 2)
+        self.assertEqual(final_state["turn_summaries"][0]["turn_index"], 1)
+        self.assertEqual(final_state["turn_summaries"][0]["question_index"], 1)
+        self.assertEqual(final_state["turn_summaries"][1]["turn_index"], 2)
+        self.assertEqual(final_state["turn_summaries"][1]["question_index"], 1)
+        self.assertTrue(final_state["turn_summaries"][1]["is_follow_up"])
         self.assertEqual(final_state["turns"][0]["routed_action"], "follow_up")
         self.assertEqual(final_state["turns"][1]["routed_action"], "final_report")
 
