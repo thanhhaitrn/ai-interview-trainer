@@ -125,3 +125,41 @@ Live webcam face-detection debug test:
 ```
 
 Link to measurements table: https://docs.google.com/document/d/1LsQhwQZJxvMVPBCeOIe63j1x1Hq3iidA3vKOKCjCyyk/edit?usp=sharing
+
+## Video Transcription (mp4 -> text)
+
+Convert a video interview answer into text with a local `faster-whisper`
+model, so the transcript can be pasted into the interview evaluation.
+
+```bash
+PYTHONPATH=. ./.venv/bin/python -m app.main transcribe data/video/video2.mp4 --language en
+```
+
+Omit the path to pick a video interactively from `data/video/`. Transcripts are
+saved to `data/transcripts/<name>.txt` (clean text) and
+`data/transcripts/<name>.json` (language, duration, word-level segments, plus
+the `fluency` and `voice` analysis below).
+
+### Delivery analysis
+
+By default `transcribe` also analyzes how the answer was delivered:
+
+- `fluency` (from the transcript + word timestamps): speaking rate (wpm),
+  pauses and long pauses, filler words (`um`, `uh`, `like`, `you know`, ...),
+  word repetitions/stumbles, and mean length of run (words spoken between
+  pauses). Note: Whisper tends to clean up `um`/`uh`, so filler counts are a
+  lower bound.
+- `voice` (from the audio signal, via Praat/`parselmouth`): pitch (F0) mean and
+  variability, jitter, and shimmer, summarized as a `tremor_label`
+  (`steady` / `mildly_unstable` / `shaky`) to gauge a trembling voice. Norms
+  are derived from sustained vowels, so on running speech they are heuristic.
+
+Pass `--skip-analysis` to only produce the transcript.
+
+Notes:
+- The first run downloads the model from Hugging Face (`small.en` ~244MB) and
+  needs network access; later runs use the local cache.
+- Use `--model tiny.en`/`base.en` for faster runs, or `--model medium.en` for
+  higher accuracy.
+- `faster-whisper` reads the MP4 directly, so no separate audio extraction or
+  system `ffmpeg` binary is required.

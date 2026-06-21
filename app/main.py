@@ -22,6 +22,8 @@ from app.resume_system.resume_normalizer import LLM_DIR, save_llm_resume
 DATA_DIR = Path("data")
 JOBS_DIR = DATA_DIR / "jobs"
 INTERVIEW_RUNS_DIR = DATA_DIR / "interview_runs"
+VIDEO_DIR = DATA_DIR / "video"
+TRANSCRIPTS_DIR = DATA_DIR / "transcripts"
 
 
 def build_mermaid_workflow() -> str:
@@ -574,6 +576,93 @@ def run_interview_cli(args: argparse.Namespace) -> None:
         raise SystemExit(1)
 
 
+def _analyze_speech(result: Any, video_path: Path) -> dict[str, Any]:
+    """Run fluency (from transcript) and voice (from audio) analysis.
+
+    Fluency is pure-Python and always runs; voice analysis decodes the audio
+    and uses Praat, so it is best-effort and never fails the transcription.
+    """
+    from app.speech_analysis import analyze_fluency, analyze_voice, decode_audio_mono
+
+    analysis: dict[str, Any] = {}
+
+    fluency = analyze_fluency(result.all_words())
+    analysis["fluency"] = fluency.to_dict()
+    print(
+        "[FLUENCY] "
+        f"rate {fluency.speech_rate_wpm} wpm | "
+        f"pauses {fluency.pause_count} ({fluency.long_pause_count} long) | "
+        f"fillers {fluency.filler_count} | "
+        f"repeats {fluency.repetition_count} | "
+        f"MLR {fluency.mean_length_of_run} words"
+    )
+    for warning in fluency.warnings:
+        print(f"[FLUENCY] note: {warning}")
+
+    try:
+        samples, sample_rate = decode_audio_mono(str(video_path))
+        voice = analyze_voice(samples, sample_rate)
+        analysis["voice"] = voice.to_dict()
+        print(
+            "[VOICE] "
+            f"steadiness {voice.tremor_label} | "
+            f"F0 {voice.f0_mean_hz} Hz | "
+            f"jitter {voice.jitter_local_pct}% | "
+            f"shimmer {voice.shimmer_local_pct}%"
+        )
+        for indicator in voice.tremor_indicators:
+            print(f"[VOICE] note: {indicator}")
+    except Exception as exc:  # noqa: BLE001 - voice analysis is best-effort
+        analysis["voice"] = {"error": str(exc)}
+        print(f"[VOICE] Skipped voice analysis: {exc}")
+
+    return analysis
+
+
+def run_transcribe_cli(args: argparse.Namespace) -> None:
+    from app.speech_analysis import has_audio_stream
+    from app.transcription import VideoTranscriber
+
+    video_path = _select_path(
+        label="video",
+        provided_path=args.input_path,
+        folder=VIDEO_DIR,
+        suffixes={".mp4", ".mov", ".avi", ".mkv"},
+    )
+
+    if not has_audio_stream(str(video_path)):
+        raise SystemExit(
+            f"No audio track found in {video_path}; nothing to transcribe."
+        )
+
+    print(f"\n[TRANSCRIBE] Loading model '{args.model}' and transcribing {video_path} ...")
+    transcriber = VideoTranscriber(model_size=args.model)
+    result = transcriber.transcribe(str(video_path), language=args.language)
+
+    payload = result.to_dict()
+    if not args.skip_analysis:
+        payload.update(_analyze_speech(result, video_path))
+
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    stem = video_path.stem
+    text_path = args.output_dir / f"{stem}.txt"
+    json_path = args.output_dir / f"{stem}.json"
+
+    text_path.write_text(result.text + "\n", encoding="utf-8")
+    _write_json(json_path, payload)
+
+    print(f"[TRANSCRIBE] Language: {result.language} | Duration: {result.duration_sec}s")
+    print(f"[TRANSCRIBE] Transcript length: {len(result.text)} characters")
+    print(f"[TRANSCRIBE] Saved text transcript to {text_path}")
+    print(f"[TRANSCRIBE] Saved JSON transcript to {json_path}")
+
+    if not result.text:
+        print(
+            "[TRANSCRIBE] Warning: empty transcript "
+            "(the video may have no speech audio)."
+        )
+
+
 def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run app utilities.")
     subparsers = parser.add_subparsers(dest="command")
@@ -699,6 +788,39 @@ def build_arg_parser() -> argparse.ArgumentParser:
         help="Optional path where Mermaid text should be written.",
     )
 
+    transcribe_parser = subparsers.add_parser(
+        "transcribe",
+        help="Transcribe a video file into text using local faster-whisper.",
+    )
+    transcribe_parser.add_argument(
+        "input_path",
+        nargs="?",
+        type=Path,
+        default=None,
+        help="Path to a video file. If omitted, choose one from data/video/.",
+    )
+    transcribe_parser.add_argument(
+        "--language",
+        default="en",
+        help="Spoken language for transcription. Default: en.",
+    )
+    transcribe_parser.add_argument(
+        "--model",
+        default="small.en",
+        help="faster-whisper model size (e.g. tiny.en, base.en, small.en, medium.en).",
+    )
+    transcribe_parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=TRANSCRIPTS_DIR,
+        help="Folder where the .txt and .json transcripts will be saved.",
+    )
+    transcribe_parser.add_argument(
+        "--skip-analysis",
+        action="store_true",
+        help="Only transcribe; skip fluency and voice-quality analysis.",
+    )
+
     return parser
 
 
@@ -738,6 +860,10 @@ def main(argv: Sequence[str] | None = None) -> None:
         output_path = save_llm_resume(parsed_path, args.output_dir)
         print(f"Saved parsed JSON to {parsed_path}")
         print(f"Saved LLM-ready resume JSON to {output_path}")
+        return
+
+    if args.command == "transcribe":
+        run_transcribe_cli(args)
         return
 
     if args.command == "show-workflow":
