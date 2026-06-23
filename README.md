@@ -163,3 +163,26 @@ Notes:
   higher accuracy.
 - `faster-whisper` reads the MP4 directly, so no separate audio extraction or
   system `ffmpeg` binary is required.
+
+### Delivery-aware answer evaluation
+
+Score a single spoken answer with the LLM, grounded in both the transcript text
+and the delivery metrics above:
+
+```bash
+PYTHONPATH=. ./.venv/bin/python -m app.main evaluate-answer \
+  --transcript data/transcripts/video2.json \
+  --question "Tell me about your copywriting background and a result you drove." \
+  --resume-path data/resumes/llm/resume1_parsed_llm.json \
+  --job-path data/jobs/sample.txt
+```
+
+The evaluation feeds `fluency` and `voice` into the prompt, so the
+`Communication Clarity` score and a dedicated `delivery_assessment` reflect how
+the answer was delivered (pace, pauses, fillers, vocal steadiness) without
+penalizing accent or non-native pronunciation. Pass `--with-video` to also fold
+in face/presentation metrics from the source video. Results are saved to
+`data/answer_evaluations/<name>_evaluation.json`.
+
+Structured-output LLM calls retry on failure (`OLLAMA_MAX_RETRIES`, default 2),
+and answer scoring runs at temperature 0 for stable scores.

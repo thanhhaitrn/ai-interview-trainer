@@ -492,6 +492,7 @@ def evaluate_answer_node(state: GraphState) -> GraphState:
     result = llm_client.call_llm_with_structured_output(
         prompt,
         EvaluatedAnswerOutput,
+        temperature=0.0,
     )
     result_json = clean_empty_fields(result.model_dump(exclude_none=True))
 

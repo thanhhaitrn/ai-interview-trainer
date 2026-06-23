@@ -68,6 +68,7 @@ class InterviewAgent:
         expected_good_answer_points: list[str],
         student_answer: str,
         profile: AgentProfile | None = None,
+        delivery_metrics: dict[str, Any] | None = None,
     ) -> str:
         return self.evaluate_answer_structured(
             cv_context=cv_context,
@@ -76,6 +77,7 @@ class InterviewAgent:
             expected_good_answer_points=expected_good_answer_points,
             student_answer=student_answer,
             profile=profile,
+            delivery_metrics=delivery_metrics,
         ).model_dump_json(exclude_none=True)
 
     def evaluate_answer_structured(
@@ -86,6 +88,7 @@ class InterviewAgent:
         expected_good_answer_points: list[str],
         student_answer: str,
         profile: AgentProfile | None = None,
+        delivery_metrics: dict[str, Any] | None = None,
     ) -> EvaluatedAnswerOutput:
         runtime_profile = profile or self.profile
         prompt = build_evaluation_chat_prompt(
@@ -95,10 +98,12 @@ class InterviewAgent:
             expected_good_answer_points=expected_good_answer_points,
             student_answer=student_answer,
             profile=runtime_profile,
+            delivery_metrics=delivery_metrics,
         )
         result = llm_client.call_llm_with_structured_output(
             prompt,
             EvaluatedAnswerOutput,
+            temperature=0.0,
         )
         return result
 

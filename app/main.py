@@ -24,6 +24,7 @@ JOBS_DIR = DATA_DIR / "jobs"
 INTERVIEW_RUNS_DIR = DATA_DIR / "interview_runs"
 VIDEO_DIR = DATA_DIR / "video"
 TRANSCRIPTS_DIR = DATA_DIR / "transcripts"
+ANSWER_EVALS_DIR = DATA_DIR / "answer_evaluations"
 
 
 def build_mermaid_workflow() -> str:
@@ -663,6 +664,129 @@ def run_transcribe_cli(args: argparse.Namespace) -> None:
         )
 
 
+def _video_presentation_metrics(source_path: str | None) -> dict[str, Any] | None:
+    """Run face/presentation analysis on the source video, best-effort."""
+    if not source_path or not Path(source_path).exists():
+        print("[EVALUATE] --with-video set but source video was not found; skipping face metrics.")
+        return None
+
+    try:
+        from app.video_analysis import VideoAnalyzer
+
+        result = VideoAnalyzer().analyze(video_path=source_path)
+        return result.to_dict().get("video_presentation")
+    except Exception as exc:  # noqa: BLE001 - face metrics are optional
+        print(f"[EVALUATE] Skipped face metrics: {exc}")
+        return None
+
+
+def run_evaluate_answer_cli(args: argparse.Namespace) -> None:
+    from app.agent import llm_client
+    from app.agent.agent import InterviewAgent
+    from app.agent.profile import build_evaluation_profile
+    from app.graph.schemas import EvaluationRequest
+    from app.speech_analysis import build_delivery_metrics
+
+    if not args.transcript.exists():
+        raise SystemExit(f"Transcript file does not exist: {args.transcript}")
+
+    transcript = _read_json(args.transcript)
+    student_answer = str(transcript.get("text") or "").strip()
+    if not student_answer:
+        raise SystemExit(
+            f"Transcript {args.transcript} has no text to evaluate."
+        )
+
+    if args.question_file is not None:
+        if not args.question_file.exists():
+            raise SystemExit(f"Question file does not exist: {args.question_file}")
+        question = args.question_file.read_text(encoding="utf-8").strip()
+    else:
+        question = (args.question or "").strip()
+    if not question:
+        raise SystemExit("Provide --question or --question-file.")
+
+    resume_path = _select_path(
+        label="resume",
+        provided_path=args.resume_path,
+        folder=LLM_DIR,
+        suffixes={".json"},
+    )
+    job_path = _select_path(
+        label="job description",
+        provided_path=args.job_path,
+        folder=JOBS_DIR,
+        suffixes={".txt"},
+    )
+
+    video_metrics = (
+        _video_presentation_metrics(transcript.get("source_path"))
+        if args.with_video
+        else None
+    )
+    delivery_metrics = build_delivery_metrics(transcript, video_metrics)
+
+    payload: dict[str, Any] = {
+        "resume": _read_json(resume_path),
+        "question": question,
+        "student_answer": student_answer,
+        "expected_good_answer_points": list(args.expected or []),
+        "delivery_metrics": delivery_metrics or None,
+    }
+    payload.update(_load_job_payload(job_path))
+    request = EvaluationRequest.model_validate(payload)
+
+    profile = build_evaluation_profile(request)
+    cv_context = request.resume if request.resume is not None else request.cv_context
+    job_context = (
+        request.job_description
+        if request.job_description is not None
+        else request.job_description_context
+    )
+
+    llm_client.reset_call_trace()
+    print(f"\n[EVALUATE] Scoring answer from {args.transcript} ...")
+    result = InterviewAgent(profile).evaluate_answer_structured(
+        cv_context=cv_context,
+        job_description_context=job_context,
+        question=request.question,
+        expected_good_answer_points=request.expected_good_answer_points,
+        student_answer=request.student_answer,
+        delivery_metrics=request.delivery_metrics,
+    )
+
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    out_path = args.output_dir / f"{args.transcript.stem}_evaluation.json"
+    _write_json(
+        out_path,
+        {
+            "question": question,
+            "transcript_path": str(args.transcript),
+            "delivery_metrics": delivery_metrics,
+            "evaluation": result,
+            "llm_calls": llm_client.get_call_trace(),
+        },
+    )
+
+    evaluation = _model_dump(result)
+    print(
+        "[EVALUATE] Overall score: "
+        f"{_format_score(evaluation.get('overall_score'))}/5 "
+        f"({evaluation.get('overall_rating', 'n/a')}) | "
+        f"signal: {evaluation.get('hiring_signal', 'n/a')}"
+    )
+    delivery = evaluation.get("delivery_assessment") or {}
+    if delivery:
+        print(
+            "[EVALUATE] Delivery: "
+            f"fluency {delivery.get('fluency_rating', 'n/a')} | "
+            f"voice {delivery.get('voice_steadiness', 'n/a')}"
+        )
+        if delivery.get("impact_on_communication"):
+            print(f"[EVALUATE] {delivery['impact_on_communication']}")
+    print(f"[EVALUATE] Saved evaluation to {out_path}")
+
+
 def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run app utilities.")
     subparsers = parser.add_subparsers(dest="command")
@@ -821,6 +945,57 @@ def build_arg_parser() -> argparse.ArgumentParser:
         help="Only transcribe; skip fluency and voice-quality analysis.",
     )
 
+    evaluate_parser = subparsers.add_parser(
+        "evaluate-answer",
+        help="Evaluate one answer from a transcript JSON, delivery-aware.",
+    )
+    evaluate_parser.add_argument(
+        "--transcript",
+        type=Path,
+        required=True,
+        help="Path to a transcript JSON produced by `transcribe`.",
+    )
+    evaluate_parser.add_argument(
+        "--question",
+        default=None,
+        help="The interview question this answer responds to.",
+    )
+    evaluate_parser.add_argument(
+        "--question-file",
+        type=Path,
+        default=None,
+        help="Path to a text file holding the interview question.",
+    )
+    evaluate_parser.add_argument(
+        "--resume-path",
+        type=Path,
+        default=None,
+        help="LLM-ready resume JSON for grounding. Defaults to a file in data/resumes/llm/.",
+    )
+    evaluate_parser.add_argument(
+        "--job-path",
+        type=Path,
+        default=None,
+        help="Job description .txt for grounding. Defaults to a file in data/jobs/.",
+    )
+    evaluate_parser.add_argument(
+        "--expected",
+        action="append",
+        default=None,
+        help="Expected strong-answer signal (repeatable).",
+    )
+    evaluate_parser.add_argument(
+        "--with-video",
+        action="store_true",
+        help="Also run face/presentation analysis on the source video.",
+    )
+    evaluate_parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=ANSWER_EVALS_DIR,
+        help="Folder where the evaluation JSON will be saved.",
+    )
+
     return parser
 
 
@@ -864,6 +1039,10 @@ def main(argv: Sequence[str] | None = None) -> None:
 
     if args.command == "transcribe":
         run_transcribe_cli(args)
+        return
+
+    if args.command == "evaluate-answer":
+        run_evaluate_answer_cli(args)
         return
 
     if args.command == "show-workflow":

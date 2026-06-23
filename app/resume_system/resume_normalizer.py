@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -271,6 +272,7 @@ def split_list_items(value: str) -> list[str]:
     return items
 
 
+@lru_cache(maxsize=1)
 def load_common_courses(path: Path = COMMON_COURSES_PATH) -> list[str]:
     """Load the curated course names used to split compact course lists."""
     if not path.exists():
@@ -283,6 +285,7 @@ def load_common_courses(path: Path = COMMON_COURSES_PATH) -> list[str]:
     ]
 
 
+@lru_cache(maxsize=512)
 def course_pattern(course_name: str) -> re.Pattern[str] | None:
     """Build a regex that matches a course name across punctuation variants."""
     tokens = re.findall(r"[A-Za-z0-9]+", course_name.replace("&", " and "))

@@ -10,6 +10,10 @@ from app.transcription.schemas import (
     TranscriptWord,
 )
 
+# Cache loaded Whisper models per (model_size, device, compute_type) so repeated
+# transcriptions in one process do not re-instantiate the model.
+_MODEL_CACHE: dict[tuple[str, str, str], object] = {}
+
 
 class VideoTranscriber:
     """Transcribe speech from a video/audio file with a local Whisper model.
@@ -31,16 +35,21 @@ class VideoTranscriber:
         self._model = None
 
     def _get_model(self):
-        """Load the Whisper model lazily so importing stays lightweight."""
+        """Load the Whisper model lazily, reusing a cached instance per config."""
         if self._model is None:
-            # Imported here so the heavy dependency only loads when used.
-            from faster_whisper import WhisperModel
+            cache_key = (self.model_size, self.device, self.compute_type)
+            model = _MODEL_CACHE.get(cache_key)
+            if model is None:
+                # Imported here so the heavy dependency only loads when used.
+                from faster_whisper import WhisperModel
 
-            self._model = WhisperModel(
-                self.model_size,
-                device=self.device,
-                compute_type=self.compute_type,
-            )
+                model = WhisperModel(
+                    self.model_size,
+                    device=self.device,
+                    compute_type=self.compute_type,
+                )
+                _MODEL_CACHE[cache_key] = model
+            self._model = model
         return self._model
 
     def transcribe(
