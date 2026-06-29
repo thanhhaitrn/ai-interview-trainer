@@ -52,7 +52,7 @@ class InterviewWorkflowTestCase(unittest.TestCase):
         decision_prompts: list[str] = []
         checkpointer = InMemorySaver()
 
-        def fake_structured_call(prompt, schema):
+        def fake_structured_call(prompt, schema, **kwargs):
             if schema is GeneratedQuestionOutput:
                 return schema.model_validate(
                     {
@@ -219,7 +219,7 @@ class InterviewWorkflowTestCase(unittest.TestCase):
             "profile": get_agent_profile(question_count=2),
         }
 
-        def fake_structured_call(prompt, schema):
+        def fake_structured_call(prompt, schema, **kwargs):
             if schema is GeneratedQuestionOutput:
                 return schema.model_validate(
                     {
@@ -250,7 +250,7 @@ class InterviewWorkflowTestCase(unittest.TestCase):
         }
         checkpointer = InMemorySaver()
 
-        def fake_structured_call(prompt, schema):
+        def fake_structured_call(prompt, schema, **kwargs):
             if schema is GeneratedQuestionOutput:
                 return schema.model_validate(
                     {
@@ -383,7 +383,7 @@ class InterviewWorkflowTestCase(unittest.TestCase):
         )
         checkpointer = InMemorySaver()
 
-        def fake_structured_call(prompt, schema):
+        def fake_structured_call(prompt, schema, **kwargs):
             if schema is GeneratedQuestionOutput:
                 return schema.model_validate(
                     {

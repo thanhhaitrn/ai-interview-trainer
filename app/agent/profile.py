@@ -29,7 +29,12 @@ def default_rubric() -> list[dict[str, Any]]:
         {
             "name": "Communication Clarity",
             "weight": 15,
-            "description": "Answer is structured, understandable, and concise",
+            "description": (
+                "Answer is structured, understandable, and concise. When delivery "
+                "metrics are provided, also weigh spoken fluency (pace, pauses, "
+                "fillers, repetitions) and vocal steadiness, without penalizing "
+                "accent or non-native pronunciation"
+            ),
         },
         {
             "name": "Role Relevance",
