@@ -15,7 +15,7 @@ from app.agent.outputs import (
     clean_empty_fields,
 )
 from app.agent.profile import get_agent_profile
-from app.graph.nodes import ask_question_node, generate_plan_node
+from app.graph.nodes import ask_question_node, evaluate_answer_node, generate_plan_node
 from app.graph.workflow import resume_interview, start_interview, workflow_steps
 
 
@@ -270,6 +270,8 @@ class InterviewWorkflowTestCase(unittest.TestCase):
                 self.assertIn("Delivery metrics JSON", prompt_text)
                 self.assertIn("speech_rate_wpm", prompt_text)
                 self.assertIn("candidate_centered_ratio", prompt_text)
+                self.assertIn("video_quality", prompt_text)
+                self.assertIn("multiple_faces_detected", prompt_text)
                 return schema.model_validate(
                     {
                         "overall_score": 4,
@@ -319,6 +321,10 @@ class InterviewWorkflowTestCase(unittest.TestCase):
                     "delivery_metrics": {
                         "fluency": {"speech_rate_wpm": 126, "pause_count": 2},
                         "face": {"candidate_centered_ratio": 0.92},
+                        "video_quality": {
+                            "brightness_mean": 104.2,
+                            "multiple_faces_detected": False,
+                        },
                     },
                 },
                 checkpointer=checkpointer,
@@ -330,10 +336,50 @@ class InterviewWorkflowTestCase(unittest.TestCase):
             final_state["turns"][0]["delivery_metrics"]["fluency"]["speech_rate_wpm"],
             126,
         )
+        self.assertIn("video_quality", final_state["turns"][0]["delivery_metrics"])
         self.assertEqual(
             final_state["turn_summaries"][0]["delivery_assessment"]["fluency_rating"],
             "fair",
         )
+
+    def test_audio_delivery_metrics_reach_evaluation_prompt_without_video(self):
+        prompts: list[str] = []
+        state = {
+            "current_question": {
+                "id": "q1",
+                "question": "Describe an API you built.",
+                "expected_strong_answer_signals": ["Concrete details"],
+            },
+            "current_answer": "I built REST endpoints and explained tradeoffs.",
+            "current_delivery_metrics": {
+                "fluency": {"speech_rate_wpm": 126, "pause_count": 2},
+                "voice": {"tremor_label": "steady"},
+            },
+            "profile": get_agent_profile(),
+            "document_brief": {"candidate_summary": "Backend candidate."},
+            "debug_trace": True,
+        }
+
+        def fake_structured_call(prompt, schema, **kwargs):
+            prompts.append(prompt.to_string())
+            return schema.model_validate(
+                {
+                    "overall_score": 4,
+                    "summary": "Audio delivery metrics were considered.",
+                }
+            )
+
+        with patch(
+            "app.agent.llm_client.call_llm_with_structured_output",
+            side_effect=fake_structured_call,
+        ):
+            result = evaluate_answer_node(state)
+
+        self.assertEqual(result["latest_evaluation"]["overall_score"], 4)
+        self.assertIn("Delivery metrics JSON", prompts[0])
+        self.assertIn("speech_rate_wpm", prompts[0])
+        self.assertIn("tremor_label", prompts[0])
+        self.assertNotIn("video_quality", prompts[0])
 
     def test_generate_plan_assigns_missing_question_ids(self):
         state = {

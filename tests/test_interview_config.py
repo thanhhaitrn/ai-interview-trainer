@@ -120,6 +120,32 @@ class InterviewConfigTestCase(unittest.TestCase):
         self.assertIn("EvaluatedAnswerOutput", prompt)
         self.assertIn("Candidate answer", prompt)
 
+    def test_evaluation_prompt_includes_video_delivery_metrics_when_provided(self):
+        prompt = build_evaluation_prompt(
+            cv_context=["Implemented backend APIs in Python"],
+            job_description_context=["Role requires API debugging and communication"],
+            question="Tell me about a backend incident you resolved.",
+            expected_good_answer_points=["Incident", "Diagnosis", "Fix", "Outcome"],
+            student_answer="I investigated logs and improved latency.",
+            profile=get_agent_profile(),
+            delivery_metrics={
+                "fluency": {"speech_rate_wpm": 126},
+                "face": {"face_visible_ratio": 0.92, "candidate_centered_ratio": 0.84},
+                "video_quality": {
+                    "brightness_mean": 105.0,
+                    "blur_score_mean": 98.0,
+                    "multiple_faces_detected": False,
+                },
+            },
+        )
+
+        self.assertIn("Delivery metrics JSON", prompt)
+        self.assertIn("speech_rate_wpm", prompt)
+        self.assertIn("face_visible_ratio", prompt)
+        self.assertIn("video_quality", prompt)
+        self.assertIn("multiple_faces_detected", prompt)
+        self.assertIn("video presentation metrics", prompt)
+
     def test_turn_decision_prompt_requires_one_integrated_followup(self):
         prompt = build_turn_decision_chat_prompt(
             profile=get_agent_profile(),
