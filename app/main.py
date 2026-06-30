@@ -22,6 +22,12 @@ from app.resume_system.resume_normalizer import LLM_DIR, save_llm_resume
 DATA_DIR = Path("data")
 JOBS_DIR = DATA_DIR / "jobs"
 INTERVIEW_RUNS_DIR = DATA_DIR / "interview_runs"
+VIDEO_DIR = DATA_DIR / "video"
+TRANSCRIPTS_DIR = DATA_DIR / "transcripts"
+ANSWER_EVALS_DIR = DATA_DIR / "answer_evaluations"
+AUDIO_SUFFIXES = {".aac", ".flac", ".m4a", ".mp3", ".ogg", ".wav"}
+VIDEO_SUFFIXES = {".avi", ".mkv", ".mov", ".mp4", ".webm"}
+MEDIA_SUFFIXES = AUDIO_SUFFIXES | VIDEO_SUFFIXES
 
 
 def build_mermaid_workflow() -> str:
@@ -119,6 +125,260 @@ def _select_path(
                 return files[choice - 1]
 
         print("Invalid choice. Please enter one of the listed numbers.")
+
+
+def _validate_existing_media_path(
+    path: Path,
+    *,
+    label: str,
+    suffixes: set[str],
+) -> Path:
+    if not path.exists():
+        raise ValueError(f"{label} file does not exist: {path}")
+    if path.suffix.lower() not in suffixes:
+        supported = ", ".join(sorted(suffixes))
+        raise ValueError(f"{label} file must use one of: {supported}")
+    return path
+
+
+def _prompt_for_media_path(*, label: str, suffixes: set[str]) -> Path:
+    supported = ", ".join(sorted(suffixes))
+    while True:
+        raw_path = input(f"Enter {label} file path ({supported}): ").strip()
+        if raw_path.lower() in {"exit", "quit", ":q"}:
+            raise KeyboardInterrupt
+        if not raw_path:
+            print("Please enter a file path, or type 'exit' to stop.")
+            continue
+
+        try:
+            return _validate_existing_media_path(
+                Path(raw_path).expanduser(),
+                label=label,
+                suffixes=suffixes,
+            )
+        except ValueError as exc:
+            print(f"[ANSWER MODE] {exc}")
+
+
+def _choose_answer_mode(configured_mode: str) -> str:
+    if configured_mode != "ask":
+        return configured_mode
+
+    if not sys.stdin.isatty():
+        return "text"
+
+    print("\nChoose answer mode:")
+    print("  1. Text")
+    print("  2. Audio file")
+    print("  3. Video file")
+
+    choices = {
+        "1": "text",
+        "text": "text",
+        "t": "text",
+        "2": "audio",
+        "audio": "audio",
+        "audio file": "audio",
+        "a": "audio",
+        "3": "video",
+        "video": "video",
+        "video file": "video",
+        "v": "video",
+    }
+
+    while True:
+        raw_choice = input("Choose 1, 2, or 3 (default 1): ").strip().lower()
+        if not raw_choice:
+            return "text"
+        mode = choices.get(raw_choice)
+        if mode:
+            return mode
+        print("Invalid choice. Please choose 1 for text, 2 for audio, or 3 for video.")
+
+
+def _media_dependency_help(exc: Exception) -> str:
+    message = str(exc)
+    missing_name = getattr(exc, "name", "")
+    if isinstance(exc, ModuleNotFoundError) and missing_name:
+        message = f"Missing Python module: {missing_name}"
+
+    return (
+        f"{message}\n"
+        "Install the media dependencies, then try again:\n"
+        "./.venv/bin/python -m pip install -r requirements.txt"
+    )
+
+
+def _transcribe_media_answer(
+    media_path: Path,
+    *,
+    model: str,
+    language: str,
+) -> tuple[str, dict[str, Any]]:
+    from app.speech_analysis import build_delivery_metrics, has_audio_stream
+    from app.transcription import VideoTranscriber
+
+    try:
+        has_audio = has_audio_stream(str(media_path))
+    except (ImportError, ModuleNotFoundError) as exc:
+        raise RuntimeError(_media_dependency_help(exc)) from exc
+
+    if not has_audio:
+        raise RuntimeError(f"No audio track found in {media_path}.")
+
+    print(f"[ANSWER MODE] Transcribing {media_path} with model '{model}' ...")
+    try:
+        transcriber = VideoTranscriber(model_size=model)
+        result = transcriber.transcribe(str(media_path), language=language)
+    except (ImportError, ModuleNotFoundError) as exc:
+        raise RuntimeError(_media_dependency_help(exc)) from exc
+
+    transcript_payload = result.to_dict()
+    transcript_payload.update(_analyze_speech(result, media_path))
+    answer_text = result.text.strip()
+    if not answer_text:
+        raise RuntimeError("Transcription completed, but no answer text was detected.")
+
+    return answer_text, build_delivery_metrics(transcript_payload)
+
+
+def _compact_video_metrics(video_result: dict[str, Any]) -> dict[str, Any]:
+    video_metrics: dict[str, Any] = {}
+
+    presentation = video_result.get("video_presentation")
+    if isinstance(presentation, dict):
+        video_metrics["face"] = {
+            key: presentation[key]
+            for key in (
+                "face_visible_ratio",
+                "camera_facing_ratio",
+                "candidate_centered_ratio",
+                "head_movement_amount",
+                "happy_frame_ratio",
+                "happy_score_mean",
+                "smile_frequency",
+                "emotion_analysis_available",
+            )
+            if presentation.get(key) is not None
+        }
+
+    quality = video_result.get("video_quality")
+    if isinstance(quality, dict):
+        video_metrics["video_quality"] = {
+            key: quality[key]
+            for key in (
+                "brightness_mean",
+                "blur_score_mean",
+                "resolution",
+                "fps",
+                "multiple_faces_detected",
+            )
+            if quality.get(key) is not None
+        }
+
+    warnings = video_result.get("warnings")
+    if isinstance(warnings, list) and warnings:
+        video_metrics["warnings"] = warnings
+
+    return clean_empty_fields(video_metrics)
+
+
+def process_audio_answer(
+    audio_path: Path,
+    *,
+    model: str,
+    language: str,
+) -> tuple[str, dict[str, Any]]:
+    """Transcribe an audio/video file and build speech delivery metrics."""
+    return _transcribe_media_answer(
+        audio_path,
+        model=model,
+        language=language,
+    )
+
+
+def process_video_answer(
+    video_path: Path,
+    *,
+    model: str,
+    language: str,
+    sample_every_n: int,
+) -> tuple[str, dict[str, Any]]:
+    """Analyze video, then transcribe its audio for the answer text."""
+    from app.video_analysis import VideoAnalysisConfig, VideoAnalyzer
+
+    print(f"[ANSWER MODE] Analyzing video presentation metrics from {video_path} ...")
+    video_result = VideoAnalyzer(
+        VideoAnalysisConfig(sample_every_n=sample_every_n)
+    ).analyze(str(video_path))
+
+    answer_text, delivery_metrics = _transcribe_media_answer(
+        video_path,
+        model=model,
+        language=language,
+    )
+    delivery_metrics.update(_compact_video_metrics(video_result.to_dict()))
+    return answer_text, clean_empty_fields(delivery_metrics)
+
+
+def _collect_text_answer() -> str:
+    answer = ""
+    while not answer:
+        answer = input("\n[USER ANSWER] ").strip()
+        if answer.lower() in {"exit", "quit", ":q"}:
+            raise KeyboardInterrupt
+        if not answer:
+            print("Please enter an answer, or type 'exit' to stop.")
+    return answer
+
+
+def _collect_answer_payload(args: argparse.Namespace) -> dict[str, Any]:
+    """Collect one answer in text/audio/video mode for the existing graph."""
+    mode = _choose_answer_mode(args.answer_mode)
+
+    if mode == "text":
+        return {
+            "answer": _collect_text_answer(),
+            "answer_source": "text",
+        }
+
+    if mode == "audio":
+        audio_path = _prompt_for_media_path(
+            label="audio",
+            suffixes=MEDIA_SUFFIXES,
+        )
+        answer_text, delivery_metrics = process_audio_answer(
+            audio_path,
+            model=args.transcription_model,
+            language=args.transcription_language,
+        )
+        print(f"[ANSWER MODE] Transcript: {answer_text}")
+        return {
+            "answer": answer_text,
+            "answer_source": "audio_file",
+            "delivery_metrics": delivery_metrics,
+        }
+
+    if mode == "video":
+        video_path = _prompt_for_media_path(
+            label="video",
+            suffixes=VIDEO_SUFFIXES,
+        )
+        answer_text, delivery_metrics = process_video_answer(
+            video_path,
+            model=args.transcription_model,
+            language=args.transcription_language,
+            sample_every_n=args.video_sample_every_n,
+        )
+        print(f"[ANSWER MODE] Transcript: {answer_text}")
+        return {
+            "answer": answer_text,
+            "answer_source": "video_file",
+            "delivery_metrics": delivery_metrics,
+        }
+
+    raise ValueError(f"Unsupported answer mode: {mode}")
 
 
 def _load_job_payload(path: Path) -> dict[str, Any]:
@@ -523,20 +783,21 @@ def run_interview_cli(args: argparse.Namespace) -> None:
             print("\n[STATE] Current stage: ask_question")
             print(f"\n[QUESTION] {_question_text(question)}")
 
-            answer = ""
-            while not answer:
-                answer = input("\n[USER ANSWER] ").strip()
-                if answer.lower() in {"exit", "quit", ":q"}:
-                    status = "stopped_by_user"
-                    break
-                if not answer:
-                    print("Please enter an answer, or type 'exit' to stop.")
+            try:
+                answer_payload = _collect_answer_payload(args)
+            except Exception as exc:  # noqa: BLE001 - answer mode should fall back.
+                print(f"[ANSWER MODE] {exc}")
+                print("[ANSWER MODE] Falling back to typed text answer.")
+                answer_payload = {
+                    "answer": _collect_text_answer(),
+                    "answer_source": "text_fallback",
+                }
 
             if status == "stopped_by_user":
                 break
 
             print("\n[STATE] Current stage: evaluate_answer")
-            state = resume_interview(thread_id=thread_id, answer=answer)
+            state = resume_interview(thread_id=thread_id, answer=answer_payload)
             _print_latest_turn_result(state)
 
         if state.get("final_report"):
@@ -573,6 +834,216 @@ def run_interview_cli(args: argparse.Namespace) -> None:
 
     if status == "failed":
         raise SystemExit(1)
+
+
+def _analyze_speech(result: Any, video_path: Path) -> dict[str, Any]:
+    """Run fluency (from transcript) and voice (from audio) analysis.
+
+    Fluency is pure-Python and always runs; voice analysis decodes the audio
+    and uses Praat, so it is best-effort and never fails the transcription.
+    """
+    from app.speech_analysis import analyze_fluency, analyze_voice, decode_audio_mono
+
+    analysis: dict[str, Any] = {}
+
+    fluency = analyze_fluency(result.all_words())
+    analysis["fluency"] = fluency.to_dict()
+    print(
+        "[FLUENCY] "
+        f"rate {fluency.speech_rate_wpm} wpm | "
+        f"pauses {fluency.pause_count} ({fluency.long_pause_count} long) | "
+        f"fillers {fluency.filler_count} | "
+        f"repeats {fluency.repetition_count} | "
+        f"MLR {fluency.mean_length_of_run} words"
+    )
+    for warning in fluency.warnings:
+        print(f"[FLUENCY] note: {warning}")
+
+    try:
+        samples, sample_rate = decode_audio_mono(str(video_path))
+        voice = analyze_voice(samples, sample_rate)
+        analysis["voice"] = voice.to_dict()
+        print(
+            "[VOICE] "
+            f"steadiness {voice.tremor_label} | "
+            f"F0 {voice.f0_mean_hz} Hz | "
+            f"jitter {voice.jitter_local_pct}% | "
+            f"shimmer {voice.shimmer_local_pct}%"
+        )
+        for indicator in voice.tremor_indicators:
+            print(f"[VOICE] note: {indicator}")
+    except Exception as exc:  # noqa: BLE001 - voice analysis is best-effort
+        analysis["voice"] = {"error": str(exc)}
+        print(f"[VOICE] Skipped voice analysis: {exc}")
+
+    return analysis
+
+
+def run_transcribe_cli(args: argparse.Namespace) -> None:
+    from app.speech_analysis import has_audio_stream
+    from app.transcription import VideoTranscriber
+
+    video_path = _select_path(
+        label="video",
+        provided_path=args.input_path,
+        folder=VIDEO_DIR,
+        suffixes={".mp4", ".mov", ".avi", ".mkv"},
+    )
+
+    if not has_audio_stream(str(video_path)):
+        raise SystemExit(
+            f"No audio track found in {video_path}; nothing to transcribe."
+        )
+
+    print(f"\n[TRANSCRIBE] Loading model '{args.model}' and transcribing {video_path} ...")
+    transcriber = VideoTranscriber(model_size=args.model)
+    result = transcriber.transcribe(str(video_path), language=args.language)
+
+    payload = result.to_dict()
+    if not args.skip_analysis:
+        payload.update(_analyze_speech(result, video_path))
+
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    stem = video_path.stem
+    text_path = args.output_dir / f"{stem}.txt"
+    json_path = args.output_dir / f"{stem}.json"
+
+    text_path.write_text(result.text + "\n", encoding="utf-8")
+    _write_json(json_path, payload)
+
+    print(f"[TRANSCRIBE] Language: {result.language} | Duration: {result.duration_sec}s")
+    print(f"[TRANSCRIBE] Transcript length: {len(result.text)} characters")
+    print(f"[TRANSCRIBE] Saved text transcript to {text_path}")
+    print(f"[TRANSCRIBE] Saved JSON transcript to {json_path}")
+
+    if not result.text:
+        print(
+            "[TRANSCRIBE] Warning: empty transcript "
+            "(the video may have no speech audio)."
+        )
+
+
+def _video_presentation_metrics(source_path: str | None) -> dict[str, Any] | None:
+    """Run face/presentation analysis on the source video, best-effort."""
+    if not source_path or not Path(source_path).exists():
+        print("[EVALUATE] --with-video set but source video was not found; skipping face metrics.")
+        return None
+
+    try:
+        from app.video_analysis import VideoAnalyzer
+
+        result = VideoAnalyzer().analyze(video_path=source_path)
+        return result.to_dict().get("video_presentation")
+    except Exception as exc:  # noqa: BLE001 - face metrics are optional
+        print(f"[EVALUATE] Skipped face metrics: {exc}")
+        return None
+
+
+def run_evaluate_answer_cli(args: argparse.Namespace) -> None:
+    from app.agent import llm_client
+    from app.agent.agent import InterviewAgent
+    from app.agent.profile import build_evaluation_profile
+    from app.graph.schemas import EvaluationRequest
+    from app.speech_analysis import build_delivery_metrics
+
+    if not args.transcript.exists():
+        raise SystemExit(f"Transcript file does not exist: {args.transcript}")
+
+    transcript = _read_json(args.transcript)
+    student_answer = str(transcript.get("text") or "").strip()
+    if not student_answer:
+        raise SystemExit(
+            f"Transcript {args.transcript} has no text to evaluate."
+        )
+
+    if args.question_file is not None:
+        if not args.question_file.exists():
+            raise SystemExit(f"Question file does not exist: {args.question_file}")
+        question = args.question_file.read_text(encoding="utf-8").strip()
+    else:
+        question = (args.question or "").strip()
+    if not question:
+        raise SystemExit("Provide --question or --question-file.")
+
+    resume_path = _select_path(
+        label="resume",
+        provided_path=args.resume_path,
+        folder=LLM_DIR,
+        suffixes={".json"},
+    )
+    job_path = _select_path(
+        label="job description",
+        provided_path=args.job_path,
+        folder=JOBS_DIR,
+        suffixes={".txt"},
+    )
+
+    video_metrics = (
+        _video_presentation_metrics(transcript.get("source_path"))
+        if args.with_video
+        else None
+    )
+    delivery_metrics = build_delivery_metrics(transcript, video_metrics)
+
+    payload: dict[str, Any] = {
+        "resume": _read_json(resume_path),
+        "question": question,
+        "student_answer": student_answer,
+        "expected_good_answer_points": list(args.expected or []),
+        "delivery_metrics": delivery_metrics or None,
+    }
+    payload.update(_load_job_payload(job_path))
+    request = EvaluationRequest.model_validate(payload)
+
+    profile = build_evaluation_profile(request)
+    cv_context = request.resume if request.resume is not None else request.cv_context
+    job_context = (
+        request.job_description
+        if request.job_description is not None
+        else request.job_description_context
+    )
+
+    llm_client.reset_call_trace()
+    print(f"\n[EVALUATE] Scoring answer from {args.transcript} ...")
+    result = InterviewAgent(profile).evaluate_answer_structured(
+        cv_context=cv_context,
+        job_description_context=job_context,
+        question=request.question,
+        expected_good_answer_points=request.expected_good_answer_points,
+        student_answer=request.student_answer,
+        delivery_metrics=request.delivery_metrics,
+    )
+
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    out_path = args.output_dir / f"{args.transcript.stem}_evaluation.json"
+    _write_json(
+        out_path,
+        {
+            "question": question,
+            "transcript_path": str(args.transcript),
+            "delivery_metrics": delivery_metrics,
+            "evaluation": result,
+            "llm_calls": llm_client.get_call_trace(),
+        },
+    )
+
+    evaluation = _model_dump(result)
+    print(
+        "[EVALUATE] Overall score: "
+        f"{_format_score(evaluation.get('overall_score'))}/5 "
+        f"({evaluation.get('overall_rating', 'n/a')}) | "
+        f"signal: {evaluation.get('hiring_signal', 'n/a')}"
+    )
+    delivery = evaluation.get("delivery_assessment") or {}
+    if delivery:
+        print(
+            "[EVALUATE] Delivery: "
+            f"fluency {delivery.get('fluency_rating', 'n/a')} | "
+            f"voice {delivery.get('voice_steadiness', 'n/a')}"
+        )
+        if delivery.get("impact_on_communication"):
+            print(f"[EVALUATE] {delivery['impact_on_communication']}")
+    print(f"[EVALUATE] Saved evaluation to {out_path}")
 
 
 def build_arg_parser() -> argparse.ArgumentParser:
@@ -627,6 +1098,28 @@ def build_arg_parser() -> argparse.ArgumentParser:
         type=Path,
         default=INTERVIEW_RUNS_DIR,
         help="Folder where trace logs and reports will be saved.",
+    )
+    interview_parser.add_argument(
+        "--answer-mode",
+        choices=("ask", "text", "audio", "video"),
+        default="ask",
+        help="How to collect each answer. Default: ask before each answer.",
+    )
+    interview_parser.add_argument(
+        "--transcription-language",
+        default="en",
+        help="Spoken language for audio/video transcription. Default: en.",
+    )
+    interview_parser.add_argument(
+        "--transcription-model",
+        default="small.en",
+        help="faster-whisper model size for audio/video answers.",
+    )
+    interview_parser.add_argument(
+        "--video-sample-every-n",
+        type=int,
+        default=10,
+        help="Analyze every nth frame for video-file answer metrics.",
     )
 
     parse_parser = subparsers.add_parser(
@@ -700,6 +1193,90 @@ def build_arg_parser() -> argparse.ArgumentParser:
         help="Optional path where Mermaid text should be written.",
     )
 
+    transcribe_parser = subparsers.add_parser(
+        "transcribe",
+        help="Transcribe a video file into text using local faster-whisper.",
+    )
+    transcribe_parser.add_argument(
+        "input_path",
+        nargs="?",
+        type=Path,
+        default=None,
+        help="Path to a video file. If omitted, choose one from data/video/.",
+    )
+    transcribe_parser.add_argument(
+        "--language",
+        default="en",
+        help="Spoken language for transcription. Default: en.",
+    )
+    transcribe_parser.add_argument(
+        "--model",
+        default="small.en",
+        help="faster-whisper model size (e.g. tiny.en, base.en, small.en, medium.en).",
+    )
+    transcribe_parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=TRANSCRIPTS_DIR,
+        help="Folder where the .txt and .json transcripts will be saved.",
+    )
+    transcribe_parser.add_argument(
+        "--skip-analysis",
+        action="store_true",
+        help="Only transcribe; skip fluency and voice-quality analysis.",
+    )
+
+    evaluate_parser = subparsers.add_parser(
+        "evaluate-answer",
+        help="Evaluate one answer from a transcript JSON, delivery-aware.",
+    )
+    evaluate_parser.add_argument(
+        "--transcript",
+        type=Path,
+        required=True,
+        help="Path to a transcript JSON produced by `transcribe`.",
+    )
+    evaluate_parser.add_argument(
+        "--question",
+        default=None,
+        help="The interview question this answer responds to.",
+    )
+    evaluate_parser.add_argument(
+        "--question-file",
+        type=Path,
+        default=None,
+        help="Path to a text file holding the interview question.",
+    )
+    evaluate_parser.add_argument(
+        "--resume-path",
+        type=Path,
+        default=None,
+        help="LLM-ready resume JSON for grounding. Defaults to a file in data/resumes/llm/.",
+    )
+    evaluate_parser.add_argument(
+        "--job-path",
+        type=Path,
+        default=None,
+        help="Job description .txt for grounding. Defaults to a file in data/jobs/.",
+    )
+    evaluate_parser.add_argument(
+        "--expected",
+        action="append",
+        default=None,
+        help="Expected strong-answer signal (repeatable).",
+    )
+    evaluate_parser.add_argument(
+        "--with-video",
+        action="store_true",
+        help="Also run face/presentation analysis on the source video.",
+    )
+    evaluate_parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=ANSWER_EVALS_DIR,
+        help="Folder where the evaluation JSON will be saved.",
+    )
+
     return parser
 
 
@@ -739,6 +1316,14 @@ def main(argv: Sequence[str] | None = None) -> None:
         output_path = save_llm_resume(parsed_path, args.output_dir)
         print(f"Saved parsed JSON to {parsed_path}")
         print(f"Saved LLM-ready resume JSON to {output_path}")
+        return
+
+    if args.command == "transcribe":
+        run_transcribe_cli(args)
+        return
+
+    if args.command == "evaluate-answer":
+        run_evaluate_answer_cli(args)
         return
 
     if args.command == "show-workflow":

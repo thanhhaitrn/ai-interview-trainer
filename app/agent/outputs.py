@@ -202,6 +202,29 @@ class EvaluationCriterionScore(BaseModel):
         return normalized
 
 
+class DeliveryAssessment(BaseModel):
+    """How the answer was delivered, grounded in speech/voice (and face) metrics."""
+
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
+
+    fluency_rating: str = Field(
+        default="",
+        description="Overall delivery fluency, e.g. weak / fair / strong.",
+    )
+    voice_steadiness: str = Field(
+        default="",
+        description="Vocal steadiness, e.g. steady / mildly_unstable / shaky.",
+    )
+    observations: list[str] = Field(
+        default_factory=list,
+        description="Specific delivery observations grounded in the metrics.",
+    )
+    impact_on_communication: str = Field(
+        default="",
+        description="How delivery affected the Communication Clarity score.",
+    )
+
+
 class CandidateCoaching(BaseModel):
     better_answer_strategy: str
     example_improvement: str
@@ -248,6 +271,7 @@ class EvaluatedAnswerOutput(BaseModel):
     red_flags: list[str] = Field(default_factory=list)
     follow_up_questions: list[str] = Field(default_factory=list)
     candidate_coaching: CandidateCoaching | None = None
+    delivery_assessment: DeliveryAssessment | None = None
     fairness_check: FairnessCheck | None = None
     legacy_compatibility: EvaluationLegacyCompatibility | None = None
 

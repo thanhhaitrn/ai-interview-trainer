@@ -456,6 +456,10 @@ def _build_compact_turn(
         if values:
             compact_turn[target_key] = values
 
+    delivery_assessment = evaluation.get("delivery_assessment")
+    if isinstance(delivery_assessment, dict) and delivery_assessment:
+        compact_turn["delivery_assessment"] = delivery_assessment
+
     if decision.get("reason"):
         compact_turn["decision_reason"] = str(decision["reason"])
 
@@ -636,8 +640,15 @@ def ask_question_node(state: GraphState) -> GraphState:
         }
     )
 
+    delivery_metrics: dict[str, Any] = {}
+    answer_source = "text"
+
     if isinstance(answer_payload, dict):
         answer = str(answer_payload.get("answer", "")).strip()
+        raw_delivery_metrics = answer_payload.get("delivery_metrics")
+        if isinstance(raw_delivery_metrics, dict):
+            delivery_metrics = clean_empty_fields(raw_delivery_metrics)
+        answer_source = str(answer_payload.get("answer_source") or answer_source)
     else:
         answer = str(answer_payload or "").strip()
 
@@ -647,6 +658,8 @@ def ask_question_node(state: GraphState) -> GraphState:
     return {
         "current_question": current_question,
         "current_answer": answer,
+        "current_answer_source": answer_source,
+        "current_delivery_metrics": delivery_metrics,
         "status": "answer_received",
         "last_node": "ask_question",
         "trace": _trace(state, trace_node, trace_message),
@@ -664,10 +677,12 @@ def evaluate_answer_node(state: GraphState) -> GraphState:
         student_answer=state["current_answer"],
         profile=state["profile"],
         document_brief=state.get("document_brief"),
+        delivery_metrics=state.get("current_delivery_metrics") or None,
     )
     result = llm_client.call_llm_with_structured_output(
         prompt,
         EvaluatedAnswerOutput,
+        temperature=0.0,
     )
     result_json = clean_empty_fields(result.model_dump(exclude_none=True))
 
@@ -817,6 +832,12 @@ def decide_next_node(state: GraphState) -> GraphState:
         "decision": decision_json,
         "routed_action": action,
     }
+    answer_source = state.get("current_answer_source")
+    if answer_source:
+        turn["answer_source"] = answer_source
+    delivery_metrics = state.get("current_delivery_metrics")
+    if delivery_metrics:
+        turn["delivery_metrics"] = delivery_metrics
 
     updates: GraphState = {
         "latest_decision": decision_json,

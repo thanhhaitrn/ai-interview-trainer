@@ -37,7 +37,7 @@ class InterviewGraphStateTestCase(unittest.TestCase):
     def test_agent_facade_generates_structured_question(self):
         agent = InterviewAgent(profile=get_agent_profile())
 
-        def fake_structured_call(prompt, schema):
+        def fake_structured_call(prompt, schema, **kwargs):
             return schema.model_validate(
                 {
                     "interview_stage": "technical_screen",
@@ -89,7 +89,7 @@ class InterviewGraphStateTestCase(unittest.TestCase):
         models = iter([PrimaryModel(), RetryModel()])
         formats = []
 
-        def fake_get_model(settings=None, response_format=None):
+        def fake_get_model(settings=None, response_format=None, temperature=None):
             formats.append(response_format)
             return next(models)
 

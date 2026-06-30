@@ -168,13 +168,71 @@ def get_model_temperature(default: float = 0.2) -> float:
         return default
 
 
+def get_max_retries(default: int = 2) -> int:
+    """Read the max structured-output retry count from the environment."""
+    raw_value = os.getenv("OLLAMA_MAX_RETRIES")
+    if raw_value is None:
+        return default
+
+    try:
+        return max(0, int(raw_value))
+    except ValueError:
+        return default
+
+
+def get_request_timeout(default: float = 120.0) -> float:
+    """Read the LLM request timeout (seconds) from the environment."""
+    raw_value = os.getenv("OLLAMA_TIMEOUT")
+    if raw_value is None:
+        return default
+
+    try:
+        return float(raw_value)
+    except ValueError:
+        return default
+
+
+def _status_code(exc: Exception) -> int | None:
+    """Best-effort HTTP status code from common Ollama/HTTP error shapes."""
+    status = getattr(exc, "status_code", None)
+    if status is None:
+        response = getattr(exc, "response", None)
+        status = getattr(response, "status_code", None)
+
+    try:
+        return int(status) if status is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _is_retryable_error(exc: Exception) -> bool:
+    """Retry only transient failures: network/timeout and HTTP 5xx.
+
+    Client errors (4xx, including 429 weekly-quota that will not recover within
+    a run) and schema validation errors are not retryable — the same prompt
+    would fail again, so fail fast instead of wasting attempts.
+    """
+    from pydantic import ValidationError
+
+    if isinstance(exc, ValidationError):
+        return False
+
+    status = _status_code(exc)
+    if status is not None:
+        return 500 <= status <= 599
+
+    # No HTTP status: typically a connection/timeout error, which is retryable.
+    return True
+
+
 def get_ollama_chat_model(
     settings: dict[str, str] | None = None,
     response_format: str | dict[str, Any] | None = None,
+    temperature: float | None = None,
 ) -> ChatOllama:
     """Create a LangChain Ollama chat model for structured-output calls."""
     settings = settings or get_model_settings()
-    client_kwargs: dict[str, Any] = {}
+    client_kwargs: dict[str, Any] = {"timeout": get_request_timeout()}
     model_kwargs: dict[str, Any] = {}
 
     if settings["api_key"]:
@@ -188,7 +246,9 @@ def get_ollama_chat_model(
     return ChatOllama(
         model=settings["model_name"],
         base_url=settings["base_url"].rstrip("/"),
-        temperature=get_model_temperature(),
+        temperature=(
+            temperature if temperature is not None else get_model_temperature()
+        ),
         client_kwargs=client_kwargs,
         **model_kwargs,
     )
@@ -290,8 +350,15 @@ def _call_json_mode_retry(
 def call_llm_with_structured_output(
     prompt: Any,
     schema: type[StructuredOutput],
+    temperature: float | None = None,
+    max_retries: int | None = None,
 ) -> StructuredOutput:
-    """Call Ollama through LangChain and validate the response as `schema`."""
+    """Call Ollama through LangChain and validate the response as `schema`.
+
+    Retries with a short backoff when the call or structured parse fails, so a
+    single bad response does not abort the interview. ``temperature`` overrides
+    the env default for this call (use 0 for deterministic scoring).
+    """
     prompt_text = _prompt_to_text(prompt)
     trace_prompt_text = prompt_text
     output_text = ""
@@ -303,28 +370,44 @@ def call_llm_with_structured_output(
     fallback_used = False
     fallback_format = ""
     fallback_raw_chars = 0
+    retry_limit = get_max_retries() if max_retries is None else max(0, max_retries)
+    attempts = 0
     usage_handler = _UsageCaptureHandler()
     trace_usage_handler = usage_handler
 
     try:
         settings = get_model_settings()
-        llm = get_ollama_chat_model(settings)
+        llm = get_ollama_chat_model(settings, temperature=temperature)
         structured_llm = llm.with_structured_output(
             schema,
             method="json_schema",
         )
-        result = structured_llm.invoke(
-            prompt,
-            config={"callbacks": [usage_handler]},
-        )
 
-        if isinstance(result, schema):
-            output_text = result.model_dump_json(exclude_none=True)
-            return result
+        last_error: Exception | None = None
+        for attempt in range(retry_limit + 1):
+            attempts = attempt + 1
+            try:
+                result = structured_llm.invoke(
+                    prompt,
+                    config={"callbacks": [usage_handler]},
+                )
 
-        parsed_result = schema.model_validate(result)
-        output_text = parsed_result.model_dump_json(exclude_none=True)
-        return parsed_result
+                if isinstance(result, schema):
+                    output_text = result.model_dump_json(exclude_none=True)
+                    return result
+
+                parsed_result = schema.model_validate(result)
+                output_text = parsed_result.model_dump_json(exclude_none=True)
+                return parsed_result
+            except Exception as exc:  # noqa: BLE001 - classify then retry/raise
+                last_error = exc
+                if attempt < retry_limit and _is_retryable_error(exc):
+                    time.sleep(0.5 * (2**attempt))
+                    continue
+                raise
+
+        assert last_error is not None
+        raise last_error
     except Exception as exc:
         primary_error = str(exc)
         try:
@@ -368,6 +451,7 @@ def call_llm_with_structured_output(
             "base_url": settings.get("base_url", ""),
             "status": status,
             "structured_output_method": "json_schema",
+            "attempts": attempts,
             "runtime_seconds": round(runtime_seconds, 4),
             "prompt_chars": len(trace_prompt_text),
             "completion_chars": len(output_text),

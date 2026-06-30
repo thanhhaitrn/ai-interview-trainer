@@ -52,7 +52,7 @@ class InterviewWorkflowTestCase(unittest.TestCase):
         decision_prompts: list[str] = []
         checkpointer = InMemorySaver()
 
-        def fake_structured_call(prompt, schema):
+        def fake_structured_call(prompt, schema, **kwargs):
             if schema is GeneratedQuestionOutput:
                 return schema.model_validate(
                     {
@@ -113,6 +113,7 @@ class InterviewWorkflowTestCase(unittest.TestCase):
                 prompt_text = prompt.to_string()
                 self.assertNotIn("Resume JSON", prompt_text)
                 self.assertNotIn("Job description JSON", prompt_text)
+                self.assertNotIn("Delivery metrics JSON", prompt_text)
                 self.assertIn("Document brief JSON", prompt_text)
                 self.assertIn("Backend candidate with API and SQL experience.", prompt_text)
                 self.assertIn("Question JSON", prompt_text)
@@ -234,6 +235,106 @@ class InterviewWorkflowTestCase(unittest.TestCase):
             decision_prompts[-1],
         )
 
+    def test_delivery_metrics_payload_reaches_evaluation_prompt(self):
+        payload = {
+            "cv_context": ["Built REST APIs"],
+            "job_description_context": ["Backend role requiring clear communication"],
+            "interview_config": {"question_count": 1},
+        }
+        checkpointer = InMemorySaver()
+
+        def fake_structured_call(prompt, schema, **kwargs):
+            if schema is GeneratedQuestionOutput:
+                return schema.model_validate(
+                    {
+                        "question_count": 1,
+                        "document_brief": {
+                            "candidate_summary": "Backend candidate.",
+                            "role_summary": "Backend role.",
+                            "key_resume_evidence": ["REST APIs"],
+                            "key_job_requirements": ["Clear communication"],
+                        },
+                        "questions": [
+                            {
+                                "id": "q1",
+                                "question": "Describe an API you built.",
+                                "competency": "API Development",
+                                "expected_strong_answer_signals": ["Concrete details"],
+                            }
+                        ],
+                    }
+                )
+
+            if schema is EvaluatedAnswerOutput:
+                prompt_text = prompt.to_string()
+                self.assertIn("Delivery metrics JSON", prompt_text)
+                self.assertIn("speech_rate_wpm", prompt_text)
+                self.assertIn("candidate_centered_ratio", prompt_text)
+                return schema.model_validate(
+                    {
+                        "overall_score": 4,
+                        "summary": "Relevant answer with usable delivery data.",
+                        "delivery_assessment": {
+                            "fluency_rating": "fair",
+                            "voice_steadiness": "steady",
+                            "observations": ["Speech rate was within range."],
+                            "impact_on_communication": "Delivery supported clarity.",
+                        },
+                    }
+                )
+
+            if schema is TurnDecisionOutput:
+                return schema.model_validate(
+                    {
+                        "action": "final_report",
+                        "reason": "Enough evidence for this one-question interview.",
+                    }
+                )
+
+            if schema is FinalInterviewReportOutput:
+                return schema.model_validate(
+                    {
+                        "overall_recommendation": "positive",
+                        "summary": "Completed with delivery-aware evaluation.",
+                    }
+                )
+
+            raise AssertionError(f"Unexpected schema: {schema}")
+
+        with patch(
+            "app.agent.llm_client.call_llm_with_structured_output",
+            side_effect=fake_structured_call,
+        ):
+            started = start_interview(
+                payload,
+                thread_id="delivery-metrics-thread",
+                checkpointer=checkpointer,
+            )
+            self.assertIn("__interrupt__", started)
+            final_state = resume_interview(
+                thread_id="delivery-metrics-thread",
+                answer={
+                    "answer": "I built REST endpoints and explained the tradeoffs.",
+                    "answer_source": "video_file",
+                    "delivery_metrics": {
+                        "fluency": {"speech_rate_wpm": 126, "pause_count": 2},
+                        "face": {"candidate_centered_ratio": 0.92},
+                    },
+                },
+                checkpointer=checkpointer,
+            )
+
+        self.assertEqual(final_state["status"], "completed")
+        self.assertEqual(final_state["current_answer_source"], "video_file")
+        self.assertEqual(
+            final_state["turns"][0]["delivery_metrics"]["fluency"]["speech_rate_wpm"],
+            126,
+        )
+        self.assertEqual(
+            final_state["turn_summaries"][0]["delivery_assessment"]["fluency_rating"],
+            "fair",
+        )
+
     def test_generate_plan_assigns_missing_question_ids(self):
         state = {
             "resume_context": "{}",
@@ -244,7 +345,7 @@ class InterviewWorkflowTestCase(unittest.TestCase):
             "profile": get_agent_profile(question_count=2),
         }
 
-        def fake_structured_call(prompt, schema):
+        def fake_structured_call(prompt, schema, **kwargs):
             if schema is GeneratedQuestionOutput:
                 return schema.model_validate(
                     {
@@ -279,7 +380,7 @@ class InterviewWorkflowTestCase(unittest.TestCase):
         }
         checkpointer = InMemorySaver()
 
-        def fake_structured_call(prompt, schema):
+        def fake_structured_call(prompt, schema, **kwargs):
             if schema is GeneratedQuestionOutput:
                 return schema.model_validate(
                     {
@@ -442,7 +543,7 @@ class InterviewWorkflowTestCase(unittest.TestCase):
         )
         checkpointer = InMemorySaver()
 
-        def fake_structured_call(prompt, schema):
+        def fake_structured_call(prompt, schema, **kwargs):
             if schema is GeneratedQuestionOutput:
                 return schema.model_validate(
                     {

@@ -1,0 +1,470 @@
+{
+  "source_path": "data/video/video2.mp4",
+  "language": "en",
+  "duration_sec": 25.067,
+  "model": "small.en",
+  "text": "Well, I have a background in writing web and email copy for fitness products, and I'm good at generating clever calls to action that deliver results. For example, my copy significantly increased our click-through rates and sales rose over 20% last quarter alone. I'm looking to join a team that will allow me to contribute and grow even more. And because you're in the athleisure space, I think that my skills and experience will be an asset.",
+  "segments": [
+    {
+      "start": 0.0,
+      "end": 7.74,
+      "text": "Well, I have a background in writing web and email copy for fitness products, and I'm good at generating clever calls to action that deliver results.",
+      "words": [
+        {
+          "start": 0.0,
+          "end": 0.56,
+          "word": "Well,"
+        },
+        {
+          "start": 0.62,
+          "end": 0.9,
+          "word": "I"
+        },
+        {
+          "start": 0.9,
+          "end": 1.02,
+          "word": "have"
+        },
+        {
+          "start": 1.02,
+          "end": 1.14,
+          "word": "a"
+        },
+        {
+          "start": 1.14,
+          "end": 1.36,
+          "word": "background"
+        },
+        {
+          "start": 1.36,
+          "end": 1.78,
+          "word": "in"
+        },
+        {
+          "start": 1.78,
+          "end": 2.12,
+          "word": "writing"
+        },
+        {
+          "start": 2.12,
+          "end": 2.44,
+          "word": "web"
+        },
+        {
+          "start": 2.44,
+          "end": 2.64,
+          "word": "and"
+        },
+        {
+          "start": 2.64,
+          "end": 2.9,
+          "word": "email"
+        },
+        {
+          "start": 2.9,
+          "end": 3.26,
+          "word": "copy"
+        },
+        {
+          "start": 3.26,
+          "end": 3.68,
+          "word": "for"
+        },
+        {
+          "start": 3.68,
+          "end": 4.02,
+          "word": "fitness"
+        },
+        {
+          "start": 4.02,
+          "end": 4.36,
+          "word": "products,"
+        },
+        {
+          "start": 4.52,
+          "end": 4.88,
+          "word": "and"
+        },
+        {
+          "start": 4.88,
+          "end": 5.18,
+          "word": "I'm"
+        },
+        {
+          "start": 5.18,
+          "end": 5.28,
+          "word": "good"
+        },
+        {
+          "start": 5.28,
+          "end": 5.42,
+          "word": "at"
+        },
+        {
+          "start": 5.42,
+          "end": 5.76,
+          "word": "generating"
+        },
+        {
+          "start": 5.76,
+          "end": 6.02,
+          "word": "clever"
+        },
+        {
+          "start": 6.02,
+          "end": 6.32,
+          "word": "calls"
+        },
+        {
+          "start": 6.32,
+          "end": 6.52,
+          "word": "to"
+        },
+        {
+          "start": 6.52,
+          "end": 6.8,
+          "word": "action"
+        },
+        {
+          "start": 6.8,
+          "end": 7.04,
+          "word": "that"
+        },
+        {
+          "start": 7.04,
+          "end": 7.28,
+          "word": "deliver"
+        },
+        {
+          "start": 7.28,
+          "end": 7.74,
+          "word": "results."
+        }
+      ]
+    },
+    {
+      "start": 8.38,
+      "end": 15.06,
+      "text": "For example, my copy significantly increased our click-through rates and sales rose over 20% last quarter alone.",
+      "words": [
+        {
+          "start": 8.38,
+          "end": 8.5,
+          "word": "For"
+        },
+        {
+          "start": 8.5,
+          "end": 8.78,
+          "word": "example,"
+        },
+        {
+          "start": 9.16,
+          "end": 9.28,
+          "word": "my"
+        },
+        {
+          "start": 9.28,
+          "end": 9.68,
+          "word": "copy"
+        },
+        {
+          "start": 9.68,
+          "end": 10.66,
+          "word": "significantly"
+        },
+        {
+          "start": 10.66,
+          "end": 11.34,
+          "word": "increased"
+        },
+        {
+          "start": 11.34,
+          "end": 11.52,
+          "word": "our"
+        },
+        {
+          "start": 11.52,
+          "end": 11.72,
+          "word": "click"
+        },
+        {
+          "start": 11.72,
+          "end": 11.94,
+          "word": "-through"
+        },
+        {
+          "start": 11.94,
+          "end": 12.24,
+          "word": "rates"
+        },
+        {
+          "start": 12.24,
+          "end": 12.76,
+          "word": "and"
+        },
+        {
+          "start": 12.76,
+          "end": 13.0,
+          "word": "sales"
+        },
+        {
+          "start": 13.0,
+          "end": 13.16,
+          "word": "rose"
+        },
+        {
+          "start": 13.16,
+          "end": 13.44,
+          "word": "over"
+        },
+        {
+          "start": 13.44,
+          "end": 13.86,
+          "word": "20"
+        },
+        {
+          "start": 13.86,
+          "end": 14.18,
+          "word": "%"
+        },
+        {
+          "start": 14.18,
+          "end": 14.4,
+          "word": "last"
+        },
+        {
+          "start": 14.4,
+          "end": 14.68,
+          "word": "quarter"
+        },
+        {
+          "start": 14.68,
+          "end": 15.06,
+          "word": "alone."
+        }
+      ]
+    },
+    {
+      "start": 15.68,
+      "end": 19.72,
+      "text": "I'm looking to join a team that will allow me to contribute and grow even more.",
+      "words": [
+        {
+          "start": 15.68,
+          "end": 16.0,
+          "word": "I'm"
+        },
+        {
+          "start": 16.0,
+          "end": 16.16,
+          "word": "looking"
+        },
+        {
+          "start": 16.16,
+          "end": 16.38,
+          "word": "to"
+        },
+        {
+          "start": 16.38,
+          "end": 16.52,
+          "word": "join"
+        },
+        {
+          "start": 16.52,
+          "end": 16.68,
+          "word": "a"
+        },
+        {
+          "start": 16.68,
+          "end": 16.86,
+          "word": "team"
+        },
+        {
+          "start": 16.86,
+          "end": 17.06,
+          "word": "that"
+        },
+        {
+          "start": 17.06,
+          "end": 17.16,
+          "word": "will"
+        },
+        {
+          "start": 17.16,
+          "end": 17.4,
+          "word": "allow"
+        },
+        {
+          "start": 17.4,
+          "end": 17.5,
+          "word": "me"
+        },
+        {
+          "start": 17.5,
+          "end": 17.64,
+          "word": "to"
+        },
+        {
+          "start": 17.64,
+          "end": 18.02,
+          "word": "contribute"
+        },
+        {
+          "start": 18.02,
+          "end": 18.7,
+          "word": "and"
+        },
+        {
+          "start": 18.7,
+          "end": 19.2,
+          "word": "grow"
+        },
+        {
+          "start": 19.2,
+          "end": 19.4,
+          "word": "even"
+        },
+        {
+          "start": 19.4,
+          "end": 19.72,
+          "word": "more."
+        }
+      ]
+    },
+    {
+      "start": 20.02,
+      "end": 24.7,
+      "text": "And because you're in the athleisure space, I think that my skills and experience will be an asset.",
+      "words": [
+        {
+          "start": 20.02,
+          "end": 20.08,
+          "word": "And"
+        },
+        {
+          "start": 20.08,
+          "end": 20.46,
+          "word": "because"
+        },
+        {
+          "start": 20.46,
+          "end": 21.38,
+          "word": "you're"
+        },
+        {
+          "start": 21.38,
+          "end": 21.5,
+          "word": "in"
+        },
+        {
+          "start": 21.5,
+          "end": 21.6,
+          "word": "the"
+        },
+        {
+          "start": 21.6,
+          "end": 22.06,
+          "word": "athleisure"
+        },
+        {
+          "start": 22.06,
+          "end": 22.4,
+          "word": "space,"
+        },
+        {
+          "start": 22.4,
+          "end": 22.66,
+          "word": "I"
+        },
+        {
+          "start": 22.66,
+          "end": 22.82,
+          "word": "think"
+        },
+        {
+          "start": 22.82,
+          "end": 22.96,
+          "word": "that"
+        },
+        {
+          "start": 22.96,
+          "end": 23.12,
+          "word": "my"
+        },
+        {
+          "start": 23.12,
+          "end": 23.4,
+          "word": "skills"
+        },
+        {
+          "start": 23.4,
+          "end": 23.56,
+          "word": "and"
+        },
+        {
+          "start": 23.56,
+          "end": 24.08,
+          "word": "experience"
+        },
+        {
+          "start": 24.08,
+          "end": 24.26,
+          "word": "will"
+        },
+        {
+          "start": 24.26,
+          "end": 24.38,
+          "word": "be"
+        },
+        {
+          "start": 24.38,
+          "end": 24.5,
+          "word": "an"
+        },
+        {
+          "start": 24.5,
+          "end": 24.7,
+          "word": "asset."
+        }
+      ]
+    }
+  ],
+  "fluency": {
+    "total_words": 78,
+    "span_sec": 24.7,
+    "speech_rate_wpm": 189.5,
+    "articulation_rate_wpm": 205.6,
+    "pause_count": 4,
+    "pause_total_sec": 1.94,
+    "mean_pause_sec": 0.49,
+    "long_pause_count": 0,
+    "filler_count": 0,
+    "filler_per_min": 0.0,
+    "repetition_count": 0,
+    "mean_length_of_run": 15.8,
+    "run_count": 5,
+    "max_run_length": 26,
+    "warnings": [
+      "Fast speaking pace (above ~180 wpm)."
+    ]
+  },
+  "voice": {
+    "sample_rate": 16000,
+    "voiced_fraction": 0.62,
+    "f0_mean_hz": 224.6815,
+    "f0_std_hz": 50.9681,
+    "f0_min_hz": 77.6809,
+    "f0_max_hz": 486.5228,
+    "f0_cv": 0.2268,
+    "jitter_local_pct": 2.0346,
+    "shimmer_local_pct": 8.5829,
+    "intensity_mean_db": 70.839,
+    "intensity_std_db": 8.6821,
+    "tremor_label": "shaky",
+    "tremor_indicators": [
+      "Elevated jitter (2.03%).",
+      "Elevated shimmer (8.58%)."
+    ],
+    "note": "Jitter/shimmer norms are for sustained vowels; on running speech these are heuristic indicators of vocal steadiness, not clinical diagnoses."
+  }
+}

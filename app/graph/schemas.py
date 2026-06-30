@@ -173,6 +173,8 @@ class EvaluationRequest(BaseModel):
     student_answer: str | None = None
     candidate_answer: str | None = None
 
+    delivery_metrics: dict[str, Any] | None = None
+
     evaluation_config: EvaluationConfig | None = None
 
     @model_validator(mode="after")

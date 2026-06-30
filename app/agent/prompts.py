@@ -30,6 +30,7 @@ _PROMPT_SECTIONS: list[PromptSection] = [
     ("system", "Question JSON:\n{question_json}", "question_json", False),
     ("system", "Expected answer signals:\n{expected_answer_signals}", "expected_answer_signals", False),
     ("system", "Candidate answer:\n{candidate_answer}", "candidate_answer", False),
+    ("system", "Delivery metrics JSON:\n{delivery_metrics_json}", "delivery_metrics_json", False),
     ("system", "Interview limits JSON:\n{interview_limits_json}", "interview_limits_json", False),
     ("system", "Current question JSON:\n{current_question_json}", "current_question_json", False),
     ("system", "Latest evaluation JSON:\n{latest_evaluation_json}", "latest_evaluation_json", False),
@@ -85,7 +86,14 @@ EVALUATION_SYSTEM_INSTRUCTION = (
     "Return rubric scores only as criteria_scores, a list of objects with "
     "criterion, score, and reason; do not return scores as a JSON object/map. "
     "Score only observed answer evidence; do not infer "
-    "missing skills."
+    "missing skills. "
+    "When delivery metrics JSON is provided (speaking rate, pauses/hesitation, "
+    "filler words, repetitions, mean length of run, and voice steadiness such "
+    "as jitter, shimmer, pitch variability, plus any face metrics), factor them "
+    "into the Communication Clarity criterion and populate delivery_assessment. "
+    "Treat delivery metrics as supporting signals about how the answer was "
+    "delivered, not as the sole basis for the score, and never penalize accent, "
+    "non-native pronunciation, or protected characteristics."
 )
 
 TURN_DECISION_SYSTEM_INSTRUCTION = (
@@ -301,6 +309,7 @@ def build_evaluation_chat_prompt(
     student_answer: str,
     profile: AgentProfile,
     document_brief: Any = None,
+    delivery_metrics: dict[str, Any] | None = None,
 ) -> ChatPromptValue:
     question_payload = (
         question if isinstance(question, dict) else {"question": question}
@@ -320,6 +329,7 @@ def build_evaluation_chat_prompt(
         "question_json": format_json(question_payload),
         "expected_answer_signals": format_list(expected_good_answer_points),
         "candidate_answer": student_answer,
+        "delivery_metrics_json": format_json(delivery_metrics) if delivery_metrics else "",
         "task": "Evaluate the candidate answer against the rubric.",
     }
     return _invoke_dynamic_prompt(payload)
@@ -422,6 +432,7 @@ def build_evaluation_prompt(
     student_answer: str,
     profile: AgentProfile,
     document_brief: Any = None,
+    delivery_metrics: dict[str, Any] | None = None,
 ) -> str:
     return build_evaluation_chat_prompt(
         cv_context=cv_context,
@@ -431,6 +442,7 @@ def build_evaluation_prompt(
         student_answer=student_answer,
         profile=profile,
         document_brief=document_brief,
+        delivery_metrics=delivery_metrics,
     ).to_string()
 
 
@@ -456,6 +468,7 @@ EVALUATION_PROMPT_TEMPLATE = build_prompt_template(
         "rating_anchors_json": "content",
         "question_json": "content",
         "candidate_answer": "answer",
+        "delivery_metrics_json": "content",
         "task": "task",
     }
 )
